@@ -1,0 +1,338 @@
+/* ============================================================
+   3AWEDLOU LAYOUT STYLES — sidebar, topbar, widgets
+   ============================================================ */
+
+/* ---------------- Sidebar ---------------- */
+.sidebar {
+  width: 252px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5) var(--space-4);
+  gap: var(--space-2);
+  z-index: 40;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 2px 6px 18px;
+}
+.brand-mark {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.brand-name {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.brand-tagline {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+/* Nav */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    background-color 130ms ease,
+    color 130ms ease;
+  width: 100%;
+  text-align: left;
+}
+.nav-item:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.nav-item.active {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+}
+.nav-item svg {
+  flex-shrink: 0;
+}
+.nav-badge {
+  margin-left: auto;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-section {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-3) 4px;
+}
+
+/* Connection widget in sidebar */
+.conn-widget {
+  margin-top: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+  background: var(--surface);
+}
+.conn-widget-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.conn-widget-top .status-dot {
+  width: 9px;
+  height: 9px;
+}
+.conn-widget-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-left: 19px;
+  font-size: 12px;
+  color: var(--text-3);
+  gap: 8px;
+}
+.conn-widget-sub .demo-tag {
+  padding: 1px 7px;
+  font-size: 9.5px;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: var(--space-3);
+}
+.sidebar-footer .nav-item {
+  font-size: 13.5px;
+  padding: 8px 12px;
+}
+
+/* Sidebar overlay (mobile) */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 45;
+  animation: fade-in 160ms ease;
+}
+
+/* ---------------- Mobile topbar ---------------- */
+.topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 12px var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 35;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 16px;
+}
+.icon-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 130ms ease,
+    color 130ms ease;
+  flex-shrink: 0;
+}
+.icon-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.icon-btn .icon-btn-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Desktop page actions (theme, notifications) */
+.page-actions {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .topbar {
+    display: flex;
+  }
+  .page-actions {
+    display: none;
+  }
+}
+
+.sidebar-close-btn {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sidebar-close-btn {
+    display: flex;
+  }
+}
+
+@media (min-width: 901px) {
+  .sidebar-overlay,
+  .topbar {
+    display: none !important;
+  }
+}
+
+/* ---------------- Header connection pill (desktop) ---------------- */
+.conn-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+}
+.conn-pill .conn-pill-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--success);
+}
+.conn-pill .conn-pill-sub {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+/* ---------- Login screen (auth gate) ---------- */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1100px 500px at 10% -10%, var(--brand-soft) 0%, transparent 60%),
+    radial-gradient(900px 420px at 110% 110%, var(--brand-soft) 0%, transparent 55%),
+    var(--bg);
+}
+
+.login-card {
+  width: 420px;
+  max-width: 100%;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-brand { margin-bottom: 6px; }
+
+.login-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.login-sub {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.login-switch {
+  font-size: 13.5px;
+  color: var(--text-2);
+  text-align: center;
+  margin-top: 2px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13.5px;
+  padding: 0;
+}
+
+.link-btn:hover { text-decoration: underline; }
