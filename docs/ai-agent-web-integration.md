@@ -322,3 +322,35 @@ Required before mobile work starts:
    added here (the repo convention is two mirrored copies).
 4. Do not add a second polling loop for the chat; the mobile realtime service
    has the same hidden-tab/background issues as the web one.
+
+## 13. Implementation matrix
+
+| Item | Status | Note |
+|---|---|---|
+| API contract verification | **Implemented** | Read from committed Symfony code, not docs; doc drift found and recorded in §3 |
+| Typed API client | **Implemented** | `src/api/agent.ts` — typed request/response, defensive normalization, error kinds |
+| Authentication integration | **Implemented** | Reuses `src/api/client.ts` Bearer flow and the existing 401 logout path; no parallel auth |
+| Chat UI | **Implemented** | `#/agent` inside the authenticated shell |
+| Responsive behavior | **Implemented** | 390 × 844 → no horizontal overflow; single-column layout verified live |
+| Accessibility | **Implemented** | `role="log"`/`aria-live`, `role="alert"`, labelled composer, focus return, reduced motion |
+| Safe message rendering | **Implemented** | Text nodes only; raw HTML / `javascript:` / `eval` blocked and regression-tested |
+| Telemetry freshness presentation | **Implemented** | Newest-sample age + 120 s/600 s labels, `"Not reported"` preserved, never invents state. Per-answer structured staleness is Future (§9.2) |
+| Error handling | **Implemented** | All documented kinds mapped; unknown → safe generic; explicit user-only retry |
+| Conversation lifecycle | **Implemented** | Start, continue, delete one, delete all. Listing is **Future** — no backend endpoint (§9.1) |
+| Automated tests | **Implemented** | 4 files / 81 tests, exit 0 |
+| Production build | **Implemented** | `vite build` exit 0, 82 modules |
+| Live backend integration | **Implemented** for the HTTP contract against a local dev backend with deterministic stub transport. Real provider round trip is **Blocked** (no key on this machine) |
+| Browser verification | **Implemented** | All eight §11 items exercised; later checks credited to DOM/network evidence, not pixels |
+| Documentation | **Implemented** | This file, plus the superseded-note banner in `docs/ai-agent-ui.md` |
+
+## 14. Git state at handoff
+
+* Branch: `feat/ai-agent-web`
+* `git status --short`: empty
+* `git diff --check`: exit 0
+* Commits (newest first): `5aeaac3` docs (live retry verification), `abff6c1` docs
+  (integration notes), `a2e3c21` test (API/UI/integration/architecture),
+  `50099be` feat (responsive chat in app shell), `cde34c8` feat (typed API
+  integration), `ac1b813` docs (chat panel design note) — all on top of the
+  pre-existing `b871c14` merge.
+* Nothing pushed. No backend source file was modified in this session.
