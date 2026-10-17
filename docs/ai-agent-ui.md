@@ -1,4 +1,15 @@
-# AI Agent Chat UI - Web (docs only)
+# AI Agent Chat UI - Web (design note, partly superseded)
+
+> **Implementation note (session 3).** This note predates the implementation
+> and is kept for the reasoning it records. Three sections no longer match what
+> shipped: (2) there is **no SSE** — the backend contract is non-streaming, so
+> the client does one JSON round trip; (4) the API exposes no structured
+> staleness per answer, so the stale banner is driven by the machine's reported
+> sample age instead of frame metadata; (6) the Phase 2 confirmation flow does
+> not exist and no write tool may be added. See
+> [ai-agent-web-integration.md](./ai-agent-web-integration.md) for what was
+> actually built and verified, including the exact endpoints, tests and known
+> gaps.
 
 Fits the existing app: React 18 + Vite + TypeScript, no router library
 (src/lib/router.ts), contexts in src/contexts (Auth, Machine, Theme, Toast),
