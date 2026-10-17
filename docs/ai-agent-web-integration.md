@@ -216,13 +216,25 @@ transport is a stubbed `fetch`).
 | Browser (Chromium, dev server on :5174 → backend :8010) | login → `#/agent`; suggested-prompt turn rendered a real 200 answer; second turn via Enter; no console errors; every request went to the configured backend (CORS preflights 200) |
 | Browser rendering checks | `.agent-msg-text` computed `white-space: pre-wrap`; exactly one user + one assistant bubble per turn; suggested prompts hide after the first turn; log is `aria-live="polite"`; send button disabled for an empty draft; input cleared only on a successful send |
 | Browser disabled-flag check | after restarting the backend with the flag off, the next message replaced the chat with the "Assistant not available" state (composer and notice removed) — confirming the wire finding above end to end |
+| Browser transient-failure + retry check | with the backend stopped, a send produced the `role="alert"` notice "No answer produced / Cannot reach the 3awedlou server", the question stayed on screen and **no assistant bubble was added**; after restarting the backend, the explicit **Retry** returned a live 200 answer, the notice cleared, and the transcript held exactly 2 questions / 2 answers (the retry did not duplicate the question) |
+| README link checker | `node scripts/check-readme-links.mjs` → "all relative links and image paths exist", exit 0 |
 | Responsive check at 390 × 844 | no horizontal overflow (`scrollWidth 380 ≤ 390`), `.agent-layout` collapsed to one column, sidebar collapsed behind "Open menu" |
 | Session/reload behaviour | reload restored the session from the stored token (data strip rendered) and the transcript reset — expected, see §9 |
 
-Not performed (and not claimed): a real Anthropic round trip (no key), and a
-live run against the user's own dev backend on :8000 (a separate, already
-running process — all live checks used a dedicated test-environment server on
-:8010 so nothing of theirs was touched).
+Not performed (and not claimed): a real Anthropic round trip (no key); a live
+`503 AGENT_LLM_UNAVAILABLE` response (it needs the real client with no key, and
+the one attempt to reach it on a separate port hit an unrelated database that
+lacks the agent tables, so the provider failure is covered by the mapping tests
+and the backend suite instead); and a live run against the user's own dev
+backend on :8000 (a separate, already running process — all live checks used a
+dedicated test-environment server on :8010 so nothing of theirs was touched).
+
+Screenshot note: the first two browser checks were captured as screenshots
+(desktop answer view, narrow-width view). Later `preview_screenshot` calls
+failed with "the preview webview is not being composited" after the viewport
+was resized; the remaining browser checks were therefore verified through DOM,
+network and wait conditions rather than pixels — they are reported as such and
+not as screenshots.
 
 ## 9. Known limitations and gaps
 
