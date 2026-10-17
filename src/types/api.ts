@@ -180,3 +180,60 @@ export interface MachineCommandResult {
   accepted: boolean
   sentAt: string
 }
+
+/* ------------------------------------------------------------------
+ * AI assistant (read-only agent) — POST /api/agent/chat and the two
+ * conversation DELETE routes. Exactly five read-only tools exist
+ * server-side; there is no write/command tool and no conversation-list
+ * endpoint (conversations are only referenced by the id returned below).
+ * ------------------------------------------------------------------ */
+
+export type AgentToolName =
+  | 'list_my_machines'
+  | 'get_latest_telemetry'
+  | 'get_recent_events'
+  | 'explain_fault_code'
+  | 'get_audit_log'
+
+/**
+ * Metadata about one tool call the assistant made. The backend only ever
+ * sends `{ name, summary }` — never raw tool payloads: `summary` is
+ * `"<tool>: N row(s)"` or `"<tool>: <CODE>"`.
+ */
+export interface AgentToolCall {
+  name: string
+  summary: string
+}
+
+export interface AgentAssistantMessage {
+  id: string
+  role: 'assistant'
+  content: string
+  toolCalls: AgentToolCall[]
+  createdAt: string
+}
+
+/** `meta.usage` of the chat response (wire keys: input/output). */
+export interface AgentUsage {
+  input: number
+  output: number
+}
+
+export interface AgentChatResponse {
+  conversationId: string
+  message: AgentAssistantMessage
+  /** null when the backend omitted/unusable `meta.usage`. */
+  usage: AgentUsage | null
+}
+
+/** DELETE /api/agent/conversations/{id} */
+export interface AgentConversationDeleted {
+  deleted: true
+  conversationId: string
+}
+
+/** DELETE /api/agent/conversations */
+export interface AgentConversationsDeleted {
+  deleted: true
+  count: number
+}
