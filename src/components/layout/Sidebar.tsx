@@ -11,6 +11,7 @@ import {
   MoonIcon,
   RecycleIcon,
   SettingsIcon,
+  SparklesIcon,
   SunIcon,
   WifiIcon,
   XIcon,
@@ -20,6 +21,7 @@ import { useTheme } from '../../contexts/ThemeContext'
 const NAV: { route: RouteName; label: string; icon: React.ReactNode }[] = [
   { route: 'dashboard', label: 'Home', icon: <HomeIcon size={19} /> },
   { route: 'machine', label: 'Machine', icon: <CpuIcon size={19} /> },
+  { route: 'agent', label: 'Assistant', icon: <SparklesIcon size={19} /> },
   { route: 'recycling', label: 'Recycling', icon: <RecycleIcon size={19} /> },
   { route: 'impact', label: 'Impact', icon: <BarChartIcon size={19} /> },
 ]
