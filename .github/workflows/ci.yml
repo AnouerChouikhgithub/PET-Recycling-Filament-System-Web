@@ -19,6 +19,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # npm 10's arborist crashes ("Cannot read properties of null (reading
+      # 'edgesOut')") resolving vitest's `*`-range optional peers against
+      # current registry majors (vitest 5, jsdom 30). npm 11 handles it; the
+      # lock itself is fine (verified locally with npm 11.21.1).
+      - name: Use npm 11
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci
 
