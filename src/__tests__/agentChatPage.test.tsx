@@ -115,6 +115,9 @@ describe('assistant page — initial state', () => {
   })
 
   it('shows the machine data source with its reported sample age', () => {
+    // Pin the clock to NOW: the fixture's "5 s ago" sample is only fresh
+    // relative to NOW, not the real wall clock.
+    vi.spyOn(Date, 'now').mockReturnValue(NOW)
     renderPage()
 
     const strip = screen.getByText('AWL-001').closest('.agent-datastrip') as HTMLElement
@@ -441,6 +444,7 @@ describe('assistant page — telemetry truthfulness', () => {
   })
 
   it('shows no stale warning for a fresh sample', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(NOW)
     renderPage()
 
     expect(screen.queryByText(/telemetry for this machine is/i)).toBeNull()

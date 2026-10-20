@@ -13,7 +13,7 @@
  *    the conversation id used by that attempt.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { agentApi, type AgentErrorKind } from '../api/agent'
+import { agentApi, isRetryableKind, type AgentErrorKind } from '../api/agent'
 import { nextMessageId, validateMessage, type ChatMessage } from './agentChat'
 
 export interface AgentNotice {
@@ -27,8 +27,6 @@ interface LastAttempt {
   text: string
   conversationId: string | null
 }
-
-const RETRYABLE: ReadonlySet<AgentErrorKind> = new Set(['provider', 'network', 'unknown'])
 
 export interface AgentChat {
   messages: ChatMessage[]
@@ -155,7 +153,8 @@ export function useAgentChat(): AgentChat {
         setNotice({
           kind,
           message: agentError.message ?? 'Something went wrong. Please try again.',
-          retryable: RETRYABLE.has(kind),
+          // Single source of truth lives next to the error mapping (F10).
+          retryable: isRetryableKind(kind),
         })
         return false
       } finally {
@@ -250,7 +249,11 @@ export function useAgentChat(): AgentChat {
     disabled,
     rateLimitRemainingSeconds,
     rateLimited: rateLimitRemainingSeconds !== null,
-    canRetry: lastAttempt.current !== null && notice !== null,
+    // Derived from STATE only: reading lastAttempt.current during render is not
+    // reactive (it is correct today only because setNotice re-renders at the
+    // same time). notice.retryable is the same fact, and retry() already
+    // refuses when there is no attempt to replay (BUGS-TO-FIX F11).
+    canRetry: notice !== null && notice.retryable,
     send,
     retry,
     startNewConversation,

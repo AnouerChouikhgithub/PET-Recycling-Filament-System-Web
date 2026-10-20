@@ -49,6 +49,19 @@ export type AgentErrorKind =
   | 'unknown'
   | 'aborted'
 
+/** The failure kinds an explicit user retry may fix (transient, not our bug). */
+const RETRYABLE_KINDS: ReadonlySet<AgentErrorKind> = new Set<AgentErrorKind>(['provider', 'network', 'unknown'])
+
+/**
+ * The SINGLE definition of "may the user retry this?". The UI must call this
+ * (or read AgentRequestError.retryable, which delegates here) instead of
+ * keeping its own list — two lists drift the moment one is edited
+ * (BUGS-TO-FIX F10).
+ */
+export function isRetryableKind(kind: AgentErrorKind): boolean {
+  return RETRYABLE_KINDS.has(kind)
+}
+
 /** Every failure the chat can surface, already mapped to a safe message. */
 export class AgentRequestError extends Error {
   constructor(
@@ -64,7 +77,7 @@ export class AgentRequestError extends Error {
 
   /** Transient failures may be retried by an explicit user action. */
   get retryable(): boolean {
-    return this.kind === 'provider' || this.kind === 'network' || this.kind === 'unknown'
+    return isRetryableKind(this.kind)
   }
 }
 
