@@ -24,9 +24,11 @@ import type { ReactNode } from 'react'
 import { machinesApi, sendMachineCommand } from '../api/machines'
 import { realtimeService } from '../realtime/realtimeService'
 import { useAuth } from './AuthContext'
+import { describeTelemetryFreshness } from '../lib/telemetryFreshness'
 import type {
   Machine,
   MachineAlert,
+  MachineCommandResult,
   MachineCommandType,
   MachineDashboardView,
   MachineTelemetry,
@@ -51,8 +53,10 @@ export interface SensorReading {
   id: 'temp' | 'motor' | 'fan' | 'feed'
   label: string
   unit: string
-  value: number
-  target: number
+  /** null means the machine did not report this channel — never render 0. */
+  value: number | null
+  /** null when no target was reported for this channel. */
+  target: number | null
   status: 'nominal' | 'warning' | 'error'
   history: number[]
   min: number
@@ -64,7 +68,8 @@ export interface Subsystem {
   key: 'heater' | 'motor' | 'cooling' | 'spooler'
   label: string
   detail: string
-  state: 'on' | 'off' | 'fault'
+  /** unknown means the channel was absent or stale — never claim off. */
+  state: 'on' | 'off' | 'fault' | 'unknown'
 }
 
 interface MachineCtx {
@@ -78,7 +83,7 @@ interface MachineCtx {
   refresh: () => void
   selectMachine: (id: string) => void
   /** Sends a guarded command; throws ApiError on rejection. */
-  sendCommand: (command: MachineCommandType, value?: number) => Promise<void>
+  sendCommand: (command: MachineCommandType, value?: number) => Promise<MachineCommandResult>
   hasMachines: boolean
   /** Alerts DERIVED from real machine state (never fabricated). */
   alerts: MachineAlert[]
@@ -89,30 +94,29 @@ interface MachineCtx {
 
 const Ctx = createContext<MachineCtx | null>(null)
 
-const TEMP_TARGET_FALLBACK = 195
-
-const last =
-  <T,>(arr: T[]): T | undefined =>
-    arr.length > 0 ? arr[arr.length - 1] : undefined
-
 const deviation = (value: number, ref: number) =>
   Math.abs(value - ref) / Math.max(1, Math.abs(ref))
 
-/** Build the sensor cards from real telemetry + real history (or zeros). */
-function buildSensors(view: MachineDashboardView, maxTempC: number): SensorReading[] {
-  const t = view.telemetry
+/** Build the sensor cards from fresh, reported telemetry and history. */
+export function buildSensors(view: MachineDashboardView, maxTempC: number, now = Date.now()): SensorReading[] {
+  const sample = view.telemetry
+  const t = sample !== null && describeTelemetryFreshness(sample.recordedAt, now).label === 'fresh' ? sample : null
 
   const historyOf = (pick: (s: MachineTelemetry) => number | null): number[] =>
-    view.recentTelemetry.map(pick).filter((v): v is number => v !== null).slice(-24)
+    view.recentTelemetry
+      .filter((entry) => describeTelemetryFreshness(entry.recordedAt, now).label === 'fresh')
+      .map(pick)
+      .filter((v): v is number => v !== null)
+      .slice(-24)
 
-  const target = t?.targetTemperature ?? TEMP_TARGET_FALLBACK
-  const tempValue = t?.temperature ?? 0
+  const target = t?.targetTemperature ?? null
+  const tempValue = t?.temperature ?? null
   const tempStatus: SensorReading['status'] =
-    t?.temperature == null
+    tempValue == null || target == null
       ? 'nominal'
-      : deviation(t.temperature, target) > 0.18
+      : deviation(tempValue, target) > 0.18
         ? 'error'
-        : deviation(t.temperature, target) > 0.09
+        : deviation(tempValue, target) > 0.09
           ? 'warning'
           : 'nominal'
 
@@ -131,9 +135,9 @@ function buildSensors(view: MachineDashboardView, maxTempC: number): SensorReadi
     {
       id: 'motor',
       label: 'Motor Speed',
-      unit: 'RPM',
-      value: t?.motorSpeed ?? 0,
-      target: t?.motorSpeed ?? 0,
+      unit: 'unit unverified',
+      value: t?.motorSpeed ?? null,
+      target: null,
       status: 'nominal',
       history: historyOf((s) => s.motorSpeed),
       min: 0,
@@ -143,10 +147,10 @@ function buildSensors(view: MachineDashboardView, maxTempC: number): SensorReadi
       id: 'fan',
       label: 'Cooling Fan',
       unit: '%',
-      value: t?.fanState ? 100 : 0,
-      target: t?.fanState ? 100 : 0,
+      value: t?.fanState == null ? null : t.fanState ? 100 : 0,
+      target: null,
       status: 'nominal',
-      history: historyOf((s) => (s.fanState ? 100 : 0)),
+      history: historyOf((s) => (s.fanState == null ? null : s.fanState ? 100 : 0)),
       min: 0,
       max: 100,
     },
@@ -154,8 +158,8 @@ function buildSensors(view: MachineDashboardView, maxTempC: number): SensorReadi
       id: 'feed',
       label: 'Feed Rate',
       unit: 'mm/s',
-      value: t?.filamentSpeed ?? 0,
-      target: t?.filamentSpeed ?? 0,
+      value: t?.filamentSpeed ?? null,
+      target: null,
       status: 'nominal',
       history: historyOf((s) => s.filamentSpeed),
       min: 0,
@@ -166,34 +170,54 @@ function buildSensors(view: MachineDashboardView, maxTempC: number): SensorReadi
 }
 
 /** Derive subsystem tiles from the latest real telemetry (no fabrication). */
-function buildSubsystems(view: MachineDashboardView): Subsystem[] {
-  const t = view.telemetry
-  const offline = view.status === 'offline'
-  const running = !offline && view.activeSession != null
+export function buildSubsystems(view: MachineDashboardView, now = Date.now()): Subsystem[] {
+  const sample = view.telemetry
+  const fresh = view.status !== 'offline'
+    && sample !== null
+    && describeTelemetryFreshness(sample.recordedAt, now).label === 'fresh'
+  const t = fresh ? sample : null
+  const reported = (value: boolean | null | undefined): 'on' | 'off' | 'unknown' =>
+    !fresh || value == null ? 'unknown' : value ? 'on' : 'off'
+
   return [
     {
       key: 'heater',
       label: 'Heater',
-      detail: t?.targetTemperature != null ? `Target ${Math.round(t.targetTemperature)}°C` : 'Standby',
-      state: !offline && (t?.heaterState ?? false) ? 'on' : 'off',
+      detail: view.status === 'offline'
+        ? 'No fresh telemetry'
+        : t == null
+          ? 'No fresh telemetry'
+          : t.targetTemperature != null
+          ? `Target ${Math.round(t.targetTemperature)}°C`
+          : 'Not reported',
+      state: reported(t?.heaterState),
     },
     {
       key: 'motor',
       label: 'Extruder Motor',
-      detail: t?.motorSpeed != null ? `${Math.round(t.motorSpeed)} RPM` : 'Standby',
-      state: !offline && (t?.motorState ?? false) ? 'on' : 'off',
+      detail: view.status === 'offline' || t == null
+        ? 'No fresh telemetry'
+        : t.motorSpeed != null
+          ? `${Math.round(t.motorSpeed)} (unit unverified)`
+          : 'Not reported',
+      state: reported(t?.motorState),
     },
     {
       key: 'cooling',
       label: 'Cooling',
-      detail: t?.fanState != null ? `Fan ${t.fanState ? 'on' : 'off'}` : 'Standby',
-      state: !offline && (t?.fanState ?? false) ? 'on' : 'off',
+      detail: view.status === 'offline' || t == null
+        ? 'No fresh telemetry'
+        : t.fanState == null
+          ? 'Not reported'
+          : `Fan ${t.fanState ? 'on' : 'off'}`,
+      state: reported(t?.fanState),
     },
     {
       key: 'spooler',
       label: 'Spooler',
-      detail: running ? 'Session in progress' : 'Idle',
-      state: running ? 'on' : 'off',
+      detail: 'No spooler telemetry reported',
+      // There is no spooler telemetry channel; a session is not proof of motion.
+      state: 'unknown',
     },
   ]
 }
@@ -275,11 +299,12 @@ export function MachineProvider({ children }: { children: ReactNode }) {
   )
 
   const sendCommand = useCallback(
-    async (command: MachineCommandType, value?: number): Promise<void> => {
+    async (command: MachineCommandType, value?: number): Promise<MachineCommandResult> => {
       const id = selectedRef.current
-      if (!id) return
-      await sendMachineCommand(id, command, value)
+      if (!id) throw new Error('No machine is selected.')
+      const result = await sendMachineCommand(id, command, value)
       refreshDashboard(id)
+      return result
     },
     [refreshDashboard],
   )
@@ -366,7 +391,7 @@ export function MachineProvider({ children }: { children: ReactNode }) {
           id: 'session-running',
           severity: 'info',
           title: 'Session in progress',
-          message: 'The machine is recycling PET into filament right now.',
+          message: 'A recycling session is marked in progress. Confirm physical activity from fresh telemetry.',
           date: dashboard.activeSession.startedAt,
           read: false,
         })
@@ -449,6 +474,3 @@ export function useMachine(): MachineCtx {
 export function useLatestTelemetry(): MachineTelemetry | null {
   return useMachine().view?.telemetry ?? null
 }
-
-// keep `last` referenced for upcoming session-progress helpers
-void last
