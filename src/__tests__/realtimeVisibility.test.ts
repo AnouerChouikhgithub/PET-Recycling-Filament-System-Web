@@ -12,7 +12,7 @@ const { dashboard } = vi.hoisted(() => ({ dashboard: vi.fn() }))
 
 vi.mock('../api/machines', () => ({ machinesApi: { dashboard } }))
 
-import { realtimeService } from '../realtime/realtimeService'
+import { RealtimeService, realtimeService } from '../realtime/realtimeService'
 
 function setHidden(hidden: boolean): void {
   Object.defineProperty(document, 'hidden', { configurable: true, value: hidden })
@@ -48,6 +48,7 @@ describe('realtimeService polling vs tab visibility', () => {
     setHidden(true)
     realtimeService.subscribeToMachine('m-hidden')
 
+    expect(realtimeService.isRunning).toBe(true)
     await vi.advanceTimersByTimeAsync(30_000)
     expect(dashboard).not.toHaveBeenCalled()
 
@@ -71,5 +72,18 @@ describe('realtimeService polling vs tab visibility', () => {
 
     await vi.advanceTimersByTimeAsync(10_000)
     expect(dashboard).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps polling when a realtime URL is configured but no socket exists', async () => {
+    const configured = new RealtimeService('ws://127.0.0.1:8080/ws')
+
+    expect(configured.mode).toBe('polling')
+    expect(configured.hasConfiguredSocketUrl).toBe(true)
+
+    configured.subscribeToMachine('m-configured')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(dashboard).toHaveBeenCalledTimes(1)
+
+    configured.unsubscribe()
   })
 })
