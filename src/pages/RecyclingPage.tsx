@@ -27,8 +27,9 @@ type RangeKey = 'all' | 'week' | 'month'
 
 function withinRange(iso: string, range: RangeKey): boolean {
   if (range === 'all') return true
-  const days = range === 'week' ? 7 : 30
-  return Date.now() - new Date(iso).getTime() <= days * 24 * 3600 * 1000
+  const ageMs = Date.now() - new Date(iso).getTime()
+  const rangeMs = (range === 'week' ? 7 : 30) * 24 * 3600 * 1000
+  return ageMs >= 0 && ageMs <= rangeMs
 }
 
 export function RecyclingPage() {
@@ -89,8 +90,8 @@ export function RecyclingPage() {
     [batchesRows],
   )
 
-  const totalPetKg = (totals.inputGrams ?? 0) / 1000
-  const totalFilKg = (totals.outputGrams ?? 0) / 1000
+  const totalPetKg = totals.inputGrams == null ? null : totals.inputGrams / 1000
+  const totalFilKg = totals.outputGrams == null ? null : totals.outputGrams / 1000
 
   const handleExport = async () => {
     setExporting(true)
@@ -138,14 +139,14 @@ export function RecyclingPage() {
         <div className="card row" style={{ gap: 14, padding: '18px 20px' }}>
           <span className="stat-card-icon"><BottleIcon size={21} /></span>
           <div>
-            <div className="stat-value">{totalPetKg.toFixed(1)} kg</div>
+            <div className="stat-value">{totalPetKg == null ? 'Not reported' : `${totalPetKg.toFixed(1)} kg`}</div>
             <div className="stat-label">PET recycled (measured)</div>
           </div>
         </div>
         <div className="card row" style={{ gap: 14, padding: '18px 20px' }}>
           <span className="stat-card-icon"><SpoolIcon size={21} /></span>
           <div>
-            <div className="stat-value">{totalFilKg.toFixed(1)} kg</div>
+            <div className="stat-value">{totalFilKg == null ? 'Not reported' : `${totalFilKg.toFixed(1)} kg`}</div>
             <div className="stat-label">filament produced</div>
           </div>
         </div>
@@ -268,7 +269,7 @@ export function RecyclingPage() {
                       <span className="hide-sm">{b.color}</span>
                     </span>
                     <span className="td-num hide-sm">{b.diameterTarget.toFixed(2)} mm</span>
-                    <span className="td-num">{Math.round(b.weightGrams)} g</span>
+                    <span className="td-num">{b.weightGrams == null ? 'Not reported' : `${Math.round(b.weightGrams)} g`}</span>
                     <span className="td-muted hide-sm">{formatDate(b.producedAt)}</span>
                     <ChevronRightIcon size={15} style={{ color: 'var(--text-3)' }} />
                   </button>
@@ -341,7 +342,7 @@ export function RecyclingPage() {
             </div>
             <DetailRow k="Produced" v={formatDateTime(detailBatch.producedAt)} />
             <DetailRow k="Diameter" v={detailBatch.diameterActual != null ? `${detailBatch.diameterActual.toFixed(2)} mm` : `${detailBatch.diameterTarget.toFixed(2)} mm target`} />
-            <DetailRow k="Weight" v={`${Math.round(detailBatch.weightGrams)} g`} />
+            <DetailRow k="Weight" v={detailBatch.weightGrams == null ? 'Not reported' : `${Math.round(detailBatch.weightGrams)} g`} />
             <DetailRow k="Quality" v={detailBatch.quality} />
             {detailBatch.notes && <DetailRow k="Quality notes" v={detailBatch.notes} />}
           </div>

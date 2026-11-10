@@ -274,8 +274,8 @@ ol {
   font-variant-numeric: tabular-nums;
 }
 
-/* Demo-data helper tag */
-.demo-tag {
+/* Metadata / state helper tag */
+.meta-tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;

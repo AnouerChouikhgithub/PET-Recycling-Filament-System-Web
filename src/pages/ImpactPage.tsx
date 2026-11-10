@@ -40,11 +40,11 @@ export function ImpactPage() {
   const totals = recyclingQ.data?.totals ?? { records: 0, inputGrams: null, outputGrams: null }
 
   // Measured values (from recycling records)…
-  const totalPetKg = (totals.inputGrams ?? 0) / 1000
-  const totalFilamentKg = (totals.outputGrams ?? 0) / 1000
+  const totalPetKg = totals.inputGrams == null ? null : totals.inputGrams / 1000
+  const totalFilamentKg = totals.outputGrams == null ? null : totals.outputGrams / 1000
   // …and clearly-labelled estimates (documented conversion factors).
-  const bottlesEquivalent = Math.round(totalPetKg * 25)
-  const co2AvoidedKg = Math.round(totalPetKg * 0.45 * 10) / 10
+  const bottlesEquivalent = totalPetKg == null ? null : Math.round(totalPetKg * 25)
+  const co2AvoidedKg = totalPetKg == null ? null : Math.round(totalPetKg * 0.45 * 10) / 10
 
   const monthly = buildMonthly(records)
   const visibleMonths = range === '6m' ? monthly.slice(-6) : monthly
@@ -75,8 +75,8 @@ export function ImpactPage() {
         <Card>
           <div className="impact-hero">
             <DonutChart
-              pct={Math.min(1, totalPetKg / 60)}
-              centerTitle={`${totalPetKg.toFixed(1)} kg`}
+              pct={totalPetKg == null ? 0 : Math.min(1, totalPetKg / 60)}
+              centerTitle={totalPetKg == null ? 'Not reported' : `${totalPetKg.toFixed(1)} kg`}
               centerSub="PET diverted"
               badge={
                 <span className="status-badge status-badge--success" style={{ marginTop: 4 }}>
@@ -89,16 +89,16 @@ export function ImpactPage() {
               <h3>Total PET diverted from landfill</h3>
               <div className="row" style={{ gap: 8, marginBottom: 10 }}>
                 <span className="muted" style={{ fontSize: 13 }}>Measured from {totals.records} recycling records</span>
-                <span className="demo-tag">Measured</span>
+                <span className="meta-tag">Measured</span>
               </div>
               <p>
                 Every kilogram of PET you recycle keeps plastic out of landfill and helps create a
-                more circular future. That’s roughly {formatNumber(bottlesEquivalent)} bottles given
+                more circular future. That’s roughly {bottlesEquivalent == null ? 'an unreported number of' : formatNumber(bottlesEquivalent)} bottles given
                 a second life as 3D-printing filament.
               </p>
               <div className="row" style={{ gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                 <div className="mini-stat">
-                  <strong>{totalFilamentKg.toFixed(1)} kg</strong>
+                  <strong>{totalFilamentKg == null ? 'Not reported' : `${totalFilamentKg.toFixed(1)} kg`}</strong>
                   <span>filament produced</span>
                 </div>
                 <div className="mini-stat">
@@ -115,7 +115,7 @@ export function ImpactPage() {
           <Card>
             <EstimateCard
               icon={<BottleIcon size={22} />}
-              value={`≈ ${formatNumber(bottlesEquivalent)}`}
+              value={bottlesEquivalent == null ? 'Not reported' : `≈ ${formatNumber(bottlesEquivalent)}`}
               label="bottles (estimated)"
               info="Assumes an average of 25 standard 0.5 L PET bottles per kilogram of recycled plastic."
             />
@@ -123,7 +123,7 @@ export function ImpactPage() {
           <Card>
             <EstimateCard
               icon={<LeafIcon size={22} />}
-              value={`≈ ${co2AvoidedKg} kg`}
+              value={co2AvoidedKg == null ? 'Not reported' : `≈ ${co2AvoidedKg} kg`}
               label="CO₂e avoided (estimated)"
               info="Estimated at 0.45 kg CO₂e avoided per kg of PET recycled, based on published lifecycle averages. Not a measured value."
             />
@@ -170,9 +170,10 @@ export function ImpactPage() {
                 <RecycleIcon size={15} style={{ color: 'var(--brand)' }} />
               </div>
               <div className="muted" style={{ fontSize: 13.5, marginTop: 2 }}>
-                Weights are measured by the machine and stored in the backend. Bottle counts and
-                CO₂e are estimates based on average PET bottle weight and published lifecycle
-                factors — they are clearly labelled as estimates wherever they appear.
+                Weights are recorded in the backend when the machine reports them; a missing mass
+                stays “Not reported” and is never counted as zero. Bottle counts and CO₂e are
+                estimates based on average PET bottle weight and published lifecycle factors —
+                they are clearly labelled as estimates wherever they appear.
               </div>
             </div>
           </div>
@@ -182,18 +183,21 @@ export function ImpactPage() {
   )
 }
 
-/** Group recycling records by month (measured input mass). */
+/** Group only reported PET input masses by calendar month, in chronological order. */
 function buildMonthly(records: { recycledAt: string; inputMassGrams: number | null }[]): { month: string; petKg: number }[] {
   const byMonth = new Map<string, number>()
   for (const r of records) {
     if (r.inputMassGrams == null) continue
-    const d = new Date(r.recycledAt)
-    const key = d.toLocaleString('en-US', { month: 'short' }) + (d.getMonth() === 0 ? ` ${d.getFullYear()}` : '')
+    const date = new Date(r.recycledAt)
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     byMonth.set(key, (byMonth.get(key) ?? 0) + r.inputMassGrams / 1000)
   }
   return Array.from(byMonth.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([month, petKg]) => ({ month, petKg: Math.round(petKg * 10) / 10 }))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, petKg]) => ({
+      month: new Date(`${key}-01T00:00:00`).toLocaleString('en-US', { month: 'short', year: '2-digit' }),
+      petKg: Math.round(petKg * 10) / 10,
+    }))
 }
 
 function EstimateCard({

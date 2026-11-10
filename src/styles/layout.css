@@ -122,11 +122,6 @@
   color: var(--text-3);
   gap: 8px;
 }
-.conn-widget-sub .demo-tag {
-  padding: 1px 7px;
-  font-size: 9.5px;
-}
-
 .sidebar-footer {
   display: flex;
   flex-direction: column;

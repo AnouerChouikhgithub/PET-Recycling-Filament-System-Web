@@ -21,6 +21,7 @@ import { PageHeader, ConnPill } from '../components/layout/PageHeader'
 import { useMachine } from '../contexts/MachineContext'
 import { useToast } from '../contexts/ToastContext'
 import { timeAgo } from '../lib/format'
+import { commandDeliveryMessage } from '../lib/commandDelivery'
 import { ApiError } from '../api/client'
 
 const SUB_ICON = {
@@ -49,7 +50,7 @@ export function MachinePage() {
   const activeSession = view?.activeSession ?? null
   const connected = machine ? machine.status !== 'offline' : false
 
-  const run = async (label: string, action: () => Promise<void>) => {
+  const run = async (label: string, action: () => Promise<unknown>) => {
     setBusy(label)
     try {
       await action()
@@ -61,13 +62,21 @@ export function MachinePage() {
     }
   }
 
-  const pause = () => run('pause', () => sendCommand('pause'))
-  const resume = () => run('resume', () => sendCommand('resume'))
+  const pause = () =>
+    run('pause', async () => {
+      const result = await sendCommand('pause')
+      toast.push('success', 'Pause command accepted', commandDeliveryMessage(result))
+    })
+  const resume = () =>
+    run('resume', async () => {
+      const result = await sendCommand('resume')
+      toast.push('success', 'Resume command accepted', commandDeliveryMessage(result))
+    })
   const stop = () =>
     run('stop', async () => {
       setConfirmStop(false)
-      await sendCommand('stop')
-      toast.push('success', 'Stop command accepted', 'The machine will wind down and report back.')
+      const result = await sendCommand('stop')
+      toast.push('success', 'Stop command accepted', commandDeliveryMessage(result))
     })
 
   if (loading && !view) {
@@ -107,15 +116,15 @@ export function MachinePage() {
     <>
       <PageHeader
         eyebrow="Machine control"
-        title={offline ? 'Machine is offline.' : running ? 'Your machine is running smoothly.' : paused ? 'Session paused.' : 'Machine is on standby.'}
-        subtitle="Live data from your 3awedlou, delivered through the backend API."
+        title={offline ? 'Machine is offline.' : running ? 'Machine status: running.' : paused ? 'Session paused.' : 'Machine is on standby.'}
+        subtitle="Machine data delivered through the backend API."
         actions={<ConnPill connected={connected} machineName={machine.identifier} transport={realtimeMode} />}
       />
 
       <div className="stack">
         {/* Connection banner (replaces the old demo banner) */}
-        <div className={`demo-banner ${offline ? '' : ''}`}>
-          <div className="demo-banner-left">
+        <div className={`info-banner ${offline ? '' : ''}`}>
+          <div className="info-banner-left">
             {offline ? <WarningIcon size={19} /> : <InfoIcon size={19} />}
             <span>
               {offline ? (
@@ -125,7 +134,7 @@ export function MachinePage() {
                 </>
               ) : (
                 <>
-                  <strong>Connected via 3awedlou backend.</strong> Data refreshes automatically — reported status “{machine.reportedStatus}”.
+                  <strong>The backend reports the machine online.</strong> Reported status “{machine.reportedStatus}”.
                 </>
               )}
             </span>
@@ -139,10 +148,10 @@ export function MachinePage() {
             title="Live Sensor Readings"
             subtitle={telemetry ? `Last sample ${timeAgo(telemetry.recordedAt)}` : 'Awaiting telemetry…'}
             actions={
-              connected ? (
+              telemetry ? (
                 <StatusBadge tone="success" pulse>Reporting</StatusBadge>
               ) : (
-                <StatusBadge tone="danger">Offline</StatusBadge>
+                <StatusBadge tone="neutral">Awaiting telemetry</StatusBadge>
               )
             }
           />
@@ -162,15 +171,16 @@ export function MachinePage() {
                   {view.sensors.map((s) => {
                     const tone = s.status === 'nominal' ? 'success' : s.status === 'warning' ? 'warning' : 'danger'
                     const decimals = s.decimals ?? 0
-                    const noData = s.history.length === 0
+                    const value = s.value
+                    const noValue = value == null
                     return (
                       <tr key={s.id}>
                         <td style={{ fontWeight: 600 }}>{s.label}</td>
                         <td className="td-num" style={{ fontSize: 15 }}>
-                          {noData ? '—' : `${s.value.toFixed(decimals)} ${s.unit}`}
+                          {value == null ? 'Not reported' : `${value.toFixed(decimals)} ${s.unit}`}
                         </td>
                         <td className="hide-sm">
-                          {noData ? (
+                          {s.history.length === 0 ? (
                             <span className="muted" style={{ fontSize: 12 }}>no samples</span>
                           ) : (
                             <span className="sensor-spark" aria-hidden>
@@ -184,11 +194,11 @@ export function MachinePage() {
                           )}
                         </td>
                         <td className="td-muted hide-sm">
-                          {noData ? '—' : `${s.target.toFixed(decimals)} ${s.unit}`}
+                          {s.target == null ? '—' : `${s.target.toFixed(decimals)} ${s.unit}`}
                         </td>
                         <td>
-                          <StatusBadge tone={noData ? 'neutral' : tone} pulse={!noData && connected}>
-                            {noData ? '—' : s.status === 'nominal' ? 'Nominal' : s.status === 'warning' ? 'Drifting' : 'Check'}
+                          <StatusBadge tone={noValue ? 'neutral' : tone} pulse={!noValue && connected}>
+                            {noValue ? '—' : s.status === 'nominal' ? 'Nominal' : s.status === 'warning' ? 'Drifting' : 'Check'}
                           </StatusBadge>
                         </td>
                       </tr>
@@ -217,8 +227,9 @@ export function MachinePage() {
                     <div>
                       <div className="subsystem-tile-title">{sub.label}</div>
                       <StatusBadge tone={tone} pulse={sub.state === 'on'}>
-                        {sub.state === 'on' ? 'Active' : sub.state === 'fault' ? 'Fault' : 'Off'}
+                        {sub.state === 'on' ? 'Active' : sub.state === 'fault' ? 'Fault' : sub.state === 'off' ? 'Off' : 'Not reported'}
                       </StatusBadge>
+                      <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{sub.detail}</div>
                     </div>
                   </div>
                 )
@@ -267,8 +278,8 @@ export function MachinePage() {
             <div className="row" style={{ gap: 8, marginTop: 12 }}>
               <LinkIcon size={14} style={{ color: 'var(--text-3)' }} />
               <span className="muted" style={{ fontSize: 12.5 }}>
-                Session start from the web dashboard arrives in the firmware phase — the command
-                pipeline (start · pause · resume · stop · setTargetTemperature · setMotorSpeed · setFan) is live end-to-end.
+                Session start from the web dashboard arrives in the firmware phase. Commands are validated,
+                audited and published through the backend; physical execution must be confirmed from telemetry.
               </span>
             </div>
           </div>
@@ -279,16 +290,16 @@ export function MachinePage() {
           <CardHeader
             icon={<WarningIcon size={18} />}
             title="Warnings & Errors"
-            actions={<span className="demo-tag">Derived from machine state</span>}
+            actions={<span className="meta-tag">Derived from machine state</span>}
           />
           <div className="card-body" style={{ paddingTop: 4 }}>
             {activeWarnings.length === 0 ? (
               <div className="ok-banner">
                 <CheckCircleIcon size={20} />
                 <div>
-                  <strong>No warnings — all systems nominal.</strong>
+                  <strong>No warnings are currently reported.</strong>
                   <div className="muted" style={{ fontSize: 13 }}>
-                    We’ll show any warnings or errors here if something needs attention.
+                    No warning or error alerts are currently available; unreported telemetry is not confirmation that the machine is healthy.
                   </div>
                 </div>
               </div>
@@ -318,8 +329,8 @@ export function MachinePage() {
               <div className="modal-title">Stop this session?</div>
             </div>
             <div className="modal-body">
-              A stop command will be validated by the backend and sent to the machine. The heater
-              powers down and the spooled filament is recorded when the machine confirms.
+              A stop command will be validated by the backend and queued for delivery. This dialog
+              cannot confirm the heater or spooler state; check fresh telemetry after the machine acknowledges it.
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setConfirmStop(false)}>Cancel</button>

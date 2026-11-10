@@ -80,7 +80,7 @@ export function HistoryPage() {
         case 'color':
           return a.color.localeCompare(b.color) * dir
         case 'weightGrams':
-          return (a.weightGrams - b.weightGrams) * dir
+          return ((a.weightGrams ?? 0) - (b.weightGrams ?? 0)) * dir
         default:
           return a.producedAt.localeCompare(b.producedAt) * dir
       }
@@ -150,7 +150,7 @@ export function HistoryPage() {
       ),
     },
     { key: 'diameter', header: 'Diameter', align: 'right', hideOnMobile: true, render: (b) => (b.diameterActual != null ? `${b.diameterActual.toFixed(2)} mm` : '—') },
-    { key: 'weightGrams', header: 'Weight', sortable: true, align: 'right', render: (b) => `${Math.round(b.weightGrams)} g` },
+    { key: 'weightGrams', header: 'Weight', sortable: true, align: 'right', render: (b) => (b.weightGrams == null ? 'Not reported' : `${Math.round(b.weightGrams)} g`) },
     { key: 'date', header: 'Created', sortable: true, render: (b) => <span className="td-muted">{formatDate(b.producedAt)}</span> },
     {
       key: 'quality',
@@ -172,7 +172,7 @@ export function HistoryPage() {
         : ['Batch', 'Color', 'Diameter (mm)', 'Weight (g)', 'Created', 'Quality'],
       tab === 'sessions'
         ? sortedSessions.map((s) => [s.id.slice(0, 8), formatDateTime(s.startedAt), s.materialInput ?? '', s.materialOutput ?? '', s.durationMinutes != null ? Math.round(s.durationMinutes) : '', s.status])
-        : sortedBatches.map((b) => [b.batchCode, b.color, b.diameterActual ?? '', Math.round(b.weightGrams), formatDateTime(b.producedAt), b.quality]),
+        : sortedBatches.map((b) => [b.batchCode, b.color, b.diameterActual ?? '', b.weightGrams != null ? Math.round(b.weightGrams) : '', formatDateTime(b.producedAt), b.quality]),
     )
   }
 
@@ -299,11 +299,11 @@ function TelemetryList({ samples }: { samples: MachineTelemetry[] }) {
               <div className="timeline-title">
                 {t.temperature != null ? `${t.temperature.toFixed(1)}°C` : '—'}
                 {t.targetTemperature != null ? ` → ${Math.round(t.targetTemperature)}°C` : ''}
-                {t.motorSpeed != null ? ` · ${t.motorSpeed} RPM` : ''}
+                {t.motorSpeed != null ? ` · ${t.motorSpeed} (unit unverified)` : ''}
                 {t.filamentDiameter != null ? ` · ${t.filamentDiameter.toFixed(2)} mm` : ''}
               </div>
               <div className="timeline-meta">
-                heater {t.heaterState ? 'on' : 'off'} · motor {t.motorState ? 'on' : 'off'} · fan {t.fanState ? 'on' : 'off'}
+                heater {t.heaterState == null ? 'Not reported' : t.heaterState ? 'on' : 'off'} · motor {t.motorState == null ? 'Not reported' : t.motorState ? 'on' : 'off'} · fan {t.fanState == null ? 'Not reported' : t.fanState ? 'on' : 'off'}
                 {t.energyConsumption != null ? ` · ${t.energyConsumption.toFixed(2)} kWh` : ''}
               </div>
             </div>

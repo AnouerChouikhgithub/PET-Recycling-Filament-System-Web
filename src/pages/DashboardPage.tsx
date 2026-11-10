@@ -39,6 +39,8 @@ export function DashboardPage() {
 
   const { machine, telemetry, sensors, activeSession } = view
   const [temp, motor, fan] = sensors
+  const motorState = view.subsystems.find((subsystem) => subsystem.key === 'motor')?.state ?? 'unknown'
+  const fanState = view.subsystems.find((subsystem) => subsystem.key === 'cooling')?.state ?? 'unknown'
 
   const statusTone =
     machine.status === 'extruding' || machine.status === 'heating'
@@ -70,8 +72,8 @@ export function DashboardPage() {
     : 0
 
   // PET recycled from real recycling records.
-  const petKg = (view.recyclingTotals.inputGrams ?? 0) / 1000
-  const filamentKg = (view.recyclingTotals.outputGrams ?? 0) / 1000
+  const petKg = view.recyclingTotals.inputGrams == null ? null : view.recyclingTotals.inputGrams / 1000
+  const filamentKg = view.recyclingTotals.outputGrams == null ? null : view.recyclingTotals.outputGrams / 1000
 
   // Temperature trend from REAL telemetry (oldest → newest).
   const tempPoints = view.recentTelemetry
@@ -83,9 +85,9 @@ export function DashboardPage() {
   }))
 
   const impactCards = [
-    { icon: <BottleIcon size={20} />, value: `${petKg.toFixed(1)} kg`, label: 'PET recycled', to: 'impact' as const },
-    { icon: <SpoolIcon size={20} />, value: `${filamentKg.toFixed(1)} kg`, label: 'filament produced', to: 'filament' as const },
-    { icon: <LeafIcon size={20} />, value: `≈ ${Math.max(0, Math.round(petKg * 25))}`, label: 'bottles equivalent', to: 'impact' as const },
+    { icon: <BottleIcon size={20} />, value: petKg == null ? 'Not reported' : `${petKg.toFixed(1)} kg`, label: 'PET recycled', to: 'impact' as const },
+    { icon: <SpoolIcon size={20} />, value: filamentKg == null ? 'Not reported' : `${filamentKg.toFixed(1)} kg`, label: 'filament produced', to: 'filament' as const },
+    { icon: <LeafIcon size={20} />, value: petKg == null ? 'Not reported' : `≈ ${Math.max(0, Math.round(petKg * 25))}`, label: 'bottles equivalent', to: 'impact' as const },
   ]
 
   return (
@@ -96,7 +98,7 @@ export function DashboardPage() {
         subtitle={
           machine.status === 'offline'
             ? `Last seen ${machine.lastSeenAt ? timeAgo(machine.lastSeenAt) : 'never'}.`
-            : 'Your 3awedlou is connected and reporting.'
+            : 'The backend reports the machine online.'
         }
         actions={<ConnPill connected={connected} machineName={machine.identifier} transport={realtimeMode} />}
       />
@@ -107,16 +109,16 @@ export function DashboardPage() {
           <Card>
             <CardHeader icon={<GaugeDot label="°C" />} title="Extruder Temperature" />
             <div className="card-body" style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center' }}>
-              <Gauge value={temp.value} max={temp.max} display={telemetry?.temperature != null ? String(Math.round(temp.value)) : '—'} sublabel={`/ ${Math.round(temp.target)}°C`} />
+              <Gauge value={temp.value} max={temp.max} display={temp.value == null ? 'Not reported' : String(Math.round(temp.value))} sublabel={temp.target == null ? 'No target reported' : `/ ${Math.round(temp.target)}°C`} />
               <div className="gauge-side">
                 <div className="gauge-side-item">
                   <span className="muted" style={{ fontSize: 12.5 }}>Target</span>
-                  <strong>{telemetry?.targetTemperature != null ? `${Math.round(temp.target)}°C` : '—'}</strong>
+                  <strong>{temp.target == null ? 'Not reported' : `${Math.round(temp.target)}°C`}</strong>
                 </div>
                 <div className="gauge-side-item">
                   <span className="muted" style={{ fontSize: 12.5 }}>Status</span>
                   <StatusBadge tone={machine.status === 'heating' ? 'warning' : connected ? 'success' : 'danger'} pulse={connected}>
-                    {machine.status === 'heating' ? 'Heating' : machine.status === 'offline' ? 'Offline' : connected ? 'Stable' : '—'}
+                    {machine.status === 'heating' ? 'Heating' : machine.status === 'offline' ? 'Offline' : connected ? 'Online (status only)' : '—'}
                   </StatusBadge>
                 </div>
               </div>
@@ -124,13 +126,13 @@ export function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader icon={<GaugeDot label="RPM" />} title="Motor Speed" />
+            <CardHeader icon={<GaugeDot label="?" />} title="Motor Speed (unit unverified)" />
             <div className="card-body" style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center' }}>
-              <Gauge value={motor.value} max={motor.max} display={telemetry?.motorSpeed != null ? String(Math.round(motor.value)) : '—'} sublabel="RPM" />
+              <Gauge value={motor.value} max={motor.max} display={motor.value == null ? 'Not reported' : String(Math.round(motor.value))} sublabel="unit unverified" />
               <div className="gauge-side">
                 <div className="gauge-side-item">
-                  <span className="muted" style={{ fontSize: 12.5 }}>Motor</span>
-                  <strong>{telemetry?.motorState == null ? '—' : telemetry.motorState ? 'On' : 'Off'}</strong>
+                  <span className="muted" style={{ fontSize: 12.5 }}>Motor state</span>
+                  <strong>{motorState === 'unknown' ? 'Not reported' : motorState === 'on' ? 'On' : 'Off'}</strong>
                 </div>
                 <div className="gauge-side-item">
                   <span className="muted" style={{ fontSize: 12.5 }}>Status</span>
@@ -145,11 +147,11 @@ export function DashboardPage() {
           <Card>
             <CardHeader icon={<GaugeDot label="%" />} title="Cooling Fan" />
             <div className="card-body" style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center' }}>
-              <Gauge value={fan.value} max={fan.max} display={telemetry?.fanState == null ? '—' : `${Math.round(fan.value)}%`} sublabel="of max" />
+              <Gauge value={fan.value} max={fan.max} display={fan.value == null ? 'Not reported' : `${Math.round(fan.value)}%`} sublabel="of max" />
               <div className="gauge-side">
                 <div className="gauge-side-item">
                   <span className="muted" style={{ fontSize: 12.5 }}>Fan</span>
-                  <strong>{telemetry?.fanState == null ? '—' : telemetry.fanState ? 'On' : 'Off'}</strong>
+                  <strong>{fanState === 'unknown' ? 'Not reported' : fanState === 'on' ? 'On' : 'Off'}</strong>
                 </div>
                 <div className="gauge-side-item">
                   <span className="muted" style={{ fontSize: 12.5 }}>Filament</span>
@@ -237,7 +239,7 @@ export function DashboardPage() {
             <div className="card-body card-body-flush" style={{ paddingTop: 4 }}>
               {alerts.length === 0 ? (
                 <div className="muted" style={{ padding: '18px 20px', fontSize: 13.5 }}>
-                  Nothing to report — the machine is behaving normally.
+                  No recent activity is recorded.
                 </div>
               ) : (
                 alerts.slice(0, 5).map((ev) => {
