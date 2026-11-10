@@ -66,11 +66,13 @@ Key rules:
 * **Machine actions are guarded commands** — start/pause/resume/stop go through
   `POST /machines/{id}/commands`; the backend validates state and safe ranges
   before anything reaches hardware.
-* **No fabricated data** — sensors show what the machine last reported; totals
-  come from measured recycling records; estimates (bottles, CO₂e) are labelled.
-* **Honest realtime** — without a realtime URL the dashboard polls every 10 s
+* **No fabricated data** — unreported telemetry channels stay `null` and render
+  "Not reported", never `0`/`off`; totals come from measured recycling records;
+  estimates (bottles, CO₂e) are labelled.
+* **Honest realtime** — the dashboard polls every 10 s
   (`REFRESH_MS = 10_000` in `src/realtime/realtimeService.ts`) and says so in
-  the UI; `RealtimeService` is already the WebSocket contract.
+  the UI. A configured `VITE_REALTIME_URL` is retained as a future socket
+  target but cannot disable polling until a real socket is connected.
 
 ## Data flow
 
@@ -110,11 +112,11 @@ exist today; everything else is planned.
 | HTTP API surface (auth, machines, telemetry, sessions, commands) | Implemented |
 | Telemetry ingestion pipeline (`TelemetryProcessor`) | Implemented |
 | Authorised machine commands with backend guard + audit | Implemented |
-| MQTT transport (publisher + `app:mqtt:consume` consumer) | Implemented (backend) |
-| Local Mosquitto dev broker with per-device ACL | Implemented (dev only) |
+| MQTT transport (publisher + `app:mqtt:consume` consumer) | Prepared (backend) — fake-broker tests; no live broker run recorded |
+| Local Mosquitto dev broker with per-device ACL | Prepared (dev only; ACL not verified live) |
 | Device acknowledgement | Prepared — `commandId`/`expiresAt` on the wire; `deviceAcknowledged` stays false until firmware acks |
 | Device-originated events | Prepared |
-| Realtime transport (WebSocket/SSE/Mercure behind `RealtimeBroadcaster`) | Prepared — both frontends program against the final interface and poll honestly |
+| Realtime transport (WebSocket/SSE/Mercure behind `RealtimeBroadcaster`) | Future — polling is implemented; the WebSocket hub is not |
 | ESP32 firmware, incl. device-side auth | Future — not in this repo |
 
 ## Prerequisites
@@ -132,7 +134,7 @@ exist today; everything else is planned.
 | Variable | Required | Default | Meaning | Example placeholder |
 |---|---|---|---|---|
 | `VITE_API_BASE_URL` | yes | `http://127.0.0.1:8000/api` | Symfony API base; the **same** backend the mobile app uses | `http://YOUR_LAN_IP:8000/api` |
-| `VITE_REALTIME_URL` | no | *(empty)* | WebSocket/SSE endpoint; **empty = polling** every 10 s, not fake realtime | `ws://127.0.0.1:8080/ws` |
+| `VITE_REALTIME_URL` | no | *(empty)* | Future WebSocket/SSE target; until the hub exists the client keeps polling every 10 s and never labels polling as a live socket | `ws://127.0.0.1:8080/ws` |
 | `VITE_ENVIRONMENT` | no | `development` | Shown in the UI footer, used for log verbosity | `production` |
 
 No secrets are used by the client. `VITE_*` values are embedded in the bundle at
@@ -247,8 +249,8 @@ bug while resolving jsdom's optional `canvas` peer.
    *(done, verified locally)*
 2. **Guarded commands + audit** — backend-safe command dispatch
    *(done, verified locally)*
-3. **MQTT broker integration** *(done and verified locally: telemetry in,
-   commands out, ACL isolation, 503 when the broker is down)*
+3. **MQTT broker integration** *(prepared and fake-broker tested; a live broker,
+   ACL isolation and physical-device run are still pending)*
 4. **ESP32 + Arduino Mega serial gateway** — planned; bench wiring exists,
    bench test pending, protocol not yet defined
 5. **Device authentication** — device tokens
@@ -258,8 +260,8 @@ bug while resolving jsdom's optional `canvas` peer.
 9. **Deployment** — Docker image, CI/CD, TLS
 10. **Helpdesk / operation tooling**
 
-**Current position:** phases 1–3 are done. Phases 4–10 are pending and
-documented as TODO(anouer) markers in this README.
+**Current position:** phases 1–2 are implemented; phase 3 is prepared, not
+live-verified. Phases 4–10 are pending.
 
 ## Related docs
 
