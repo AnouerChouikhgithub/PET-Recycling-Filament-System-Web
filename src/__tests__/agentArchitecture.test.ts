@@ -88,7 +88,7 @@ describe('agent UI — safe rendering only', () => {
   it('renders untrusted text through the pre-wrap text class (not as markup)', () => {
     // CSS files are stubbed empty under Vitest, so the stylesheet link itself
     // is checked here; the rendered white-space value is verified in the
-    // browser pass (see docs/ai-agent-web-integration.md).
+    // browser pass (see README: AI assistant).
     const bubble = read('components/agent/MessageBubble.tsx')
     expect(bubble).toMatch(/className="agent-msg-text"/)
     expect(bubble).toMatch(/\{message\.content\}/)

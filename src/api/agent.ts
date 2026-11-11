@@ -1,7 +1,7 @@
 /**
  * AI assistant endpoints (web).
  *
- * Verified against the committed Symfony controller + docs/api-contract.md
+ * Verified against the committed Symfony controller + the backend README (API contract)
  * (AgentController, session 2 backend):
  *
  *   POST   /api/agent/chat               { conversationId?, message } -> 200

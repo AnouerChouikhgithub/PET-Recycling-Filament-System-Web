@@ -2,7 +2,7 @@
  * 3awedlou API CONTRACT (web copy)
  * --------------------------------
  * These types mirror the Symfony backend responses EXACTLY (see
- * backend/docs/api-contract.md). The mobile app holds an equivalent copy —
+ * the backend README (API contract)). The mobile app holds an equivalent copy —
  * the two must never drift: same field names, same status enums, same
  * envelope. When the backend contract changes, update both.
  */

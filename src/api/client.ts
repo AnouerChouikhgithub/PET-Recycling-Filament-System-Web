@@ -8,7 +8,7 @@
  *  - 401 handling: clear session once, notify the app (AuthContext listens)
  *
  * The mobile app mirrors this file (fetch + expo-secure-store) — keep the two
- * in sync with backend/docs/api-contract.md.
+ * in sync with the backend README (API contract).
  */
 
 export class ApiError extends Error {
