@@ -148,11 +148,11 @@ placeholders.
 
 ```bash
 npm run typecheck    # tsc --noEmit
-npm test             # vitest run: 7 files / 92 tests
+npm test             # vitest run: 8 files / 95 tests
 npm run build        # vite build (verifies bundling)
 ```
 
-Latest results (2026-11-11): typecheck passes, **92 tests in 7 files pass**,
+Latest results (2026-11-11, round 4): typecheck passes, **95 tests in 8 files pass**,
 build succeeds. Tests stub `fetch` and never touch the network; there is no
 lint step. CI (`.github/workflows/ci.yml`) runs Node 20 + npm 11, `npm ci`,
 typecheck, tests and build.
