@@ -123,7 +123,7 @@ single backbone. MQTT is prepared but has not been run against a live broker.
 | AI assistant screen (non-streaming, explicit retry) | Prepared — mocked API tests only; no live provider |
 | Realtime transport | Future — 10 s polling is implemented and labelled |
 | Browser visual/E2E pass | Future — no automated browser run is wired |
-| Refresh-token storage/rotation/logout revocation | Future — blocked decision |
+| Refresh-token storage/rotation/logout revocation | Future by design — the web keeps only the short-lived access token and logs out on 401; cookie-based refresh is not implemented |
 
 ## Prerequisites
 
@@ -213,9 +213,10 @@ export command. `scripts/downscale-png.mjs` resizes a supplied image.
 ## Security notes
 
 * The **access token is stored in `localStorage`**, so any XSS on the origin can
-  read it. The backend refresh token is returned but not stored; logout deletes
-  only the local access token and does not revoke the server refresh token.
-  Refresh storage/rotation/logout is an open decision (see the status report).
+  read it. The backend returns a refresh token but this client deliberately does
+  **not** store or use one: on 401 it ends the session (local token cleared),
+  and logout clears only that access token. Cookie-based refresh with
+  server-side revocation is **Future**, not a hidden behaviour.
 * Auth surface is rate-limited by the backend (login 5/5 min, register 3/10 min,
   refresh 30/5 min per IP).
 * `VITE_*` values are public by construction. Never put tokens, broker

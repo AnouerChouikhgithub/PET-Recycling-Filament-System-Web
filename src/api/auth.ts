@@ -20,9 +20,10 @@ export const authApi = {
   },
 
   logout(): void {
-    // Discards the access token locally. The server refresh token is not stored
-    // yet, so /auth/logout is not called and server-side revocation is pending
-    // the token-storage decision tracked in the inventory.
+    // Discards the short-lived access token locally. This client deliberately
+    // does NOT keep a refresh token in JavaScript-readable storage, so it also
+    // cannot revoke one server-side; a 401 simply ends the session. Cookie-based
+    // refresh + server revocation is Future (a separate design decision).
     setToken(null)
   },
 }
