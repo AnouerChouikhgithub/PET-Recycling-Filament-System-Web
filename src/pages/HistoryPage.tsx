@@ -20,6 +20,7 @@ import { machinesApi } from '../api/machines'
 import { useMachine } from '../contexts/MachineContext'
 import { exportCsv } from '../lib/csv'
 import { formatDate, formatDateTime, formatDuration, timeAgo } from '../lib/format'
+import { compareNullableNumber } from '../lib/historySort'
 import type { FilamentProduction, MachineSession, MachineTelemetry } from '../types/api'
 
 type TabKey = 'sessions' | 'batches' | 'telemetry' | 'alerts'
@@ -58,9 +59,9 @@ export function HistoryPage() {
         case 'id':
           return a.id.localeCompare(b.id) * dir
         case 'materialInput':
-          return ((a.materialInput ?? 0) - (b.materialInput ?? 0)) * dir
+          return compareNullableNumber(a.materialInput, b.materialInput, dir)
         case 'materialOutput':
-          return ((a.materialOutput ?? 0) - (b.materialOutput ?? 0)) * dir
+          return compareNullableNumber(a.materialOutput, b.materialOutput, dir)
         case 'status':
           return a.status.localeCompare(b.status) * dir
         default:
@@ -80,7 +81,7 @@ export function HistoryPage() {
         case 'color':
           return a.color.localeCompare(b.color) * dir
         case 'weightGrams':
-          return ((a.weightGrams ?? 0) - (b.weightGrams ?? 0)) * dir
+          return compareNullableNumber(a.weightGrams, b.weightGrams, dir)
         default:
           return a.producedAt.localeCompare(b.producedAt) * dir
       }
