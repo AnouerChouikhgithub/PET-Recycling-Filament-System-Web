@@ -6,7 +6,6 @@ import type {
   MachineCommandResult,
   MachineCommandType,
   MachineDashboardView,
-  MachineStatusView,
   MachineSession,
   MachineTelemetry,
   RecyclingRecord,
@@ -16,14 +15,6 @@ import type {
 export const machinesApi = {
   list(): Promise<Machine[]> {
     return api.get<Machine[]>('/machines')
-  },
-
-  detail(id: string): Promise<Machine & { telemetry: MachineTelemetry | null; activeSessionId: string | null }> {
-    return api.get(`/machines/${id}`)
-  },
-
-  status(id: string): Promise<MachineStatusView> {
-    return api.get(`/machines/${id}/status`)
   },
 
   /** One round trip powering the dashboard (machine + telemetry + session + totals). */

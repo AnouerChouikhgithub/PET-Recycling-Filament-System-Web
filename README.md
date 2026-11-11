@@ -3,16 +3,15 @@
 Dashboard for the 3awedlou smart PET recycling machine.
 
 Built with **React 18 + Vite 5 + TypeScript** — no UI framework, custom design
-system in `src/styles` (brand green identity).
-
-The app talks to the **same Symfony backend as the mobile app** — one API, one
-JWT scheme, one contract (see [`../backend/docs/api-contract.md`](../backend/docs/api-contract.md)).
+system in `src/styles` (brand green identity). It talks to the same Symfony
+backend as the mobile app: one API, one JWT scheme, one contract (the backend
+README is the contract).
 
 ## Run it
 
-1. Start the Symfony backend (see [`../backend/README.md`](../backend/README.md)) — by default on
-   `http://127.0.0.1:8000`.
-2. Create `.env` (or copy `.env.example`):
+1. Start the Symfony backend (`../PET-Recycling-Filament-System-Backend/README.md`)
+   — by default on `http://127.0.0.1:8000`.
+2. Create `.env` from `.env.example`:
 
    ```ini
    VITE_API_BASE_URL=http://127.0.0.1:8000/api
@@ -22,172 +21,184 @@ JWT scheme, one contract (see [`../backend/docs/api-contract.md`](../backend/doc
 
 3. `npm install && npm run dev` → http://localhost:5173
 
-Dev accounts (loaded by backend fixtures, dev only): `anouer@3awedlou.app` /
+Dev accounts come from backend fixtures (dev only): `anouer@3awedlou.app` /
 `3awedlou-dev`.
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Vite dev server on :5173 |
-| `npm run build` | Type-safe production build (`dist/`) |
+| `npm run build` | Production build into `dist/` |
 | `npm run preview` | Preview the production build |
-| `npm run typecheck` | `tsc --noEmit` over `src` |
+| `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest + React Testing Library (jsdom) |
+
+## Screens and backend calls
+
+| Screen | Route | Backend calls |
+|---|---|---|
+| Login / register | auth gate (no route) | `POST /auth/login`, `POST /auth/register`, `GET /me` on restore |
+| Dashboard | `#/dashboard` | `GET /machines`, `GET /machines/{id}/dashboard`, `GET /machines/{id}/sessions` |
+| Machine | `#/machine` | dashboard + `POST /machines/{id}/commands`; telemetry refresh via the realtime service |
+| AI assistant | `#/agent` | `POST /agent/chat`, `DELETE /agent/conversations/{id}`, `DELETE /agent/conversations` |
+| Recycling | `#/recycling` | `GET /machines/{id}/recycling` (totals), sessions + production lists |
+| Filament | `#/filament` | `GET /machines/{id}/production` |
+| Impact | `#/impact` | `GET /machines/{id}/recycling` (measured totals + estimates) |
+| History | `#/history` | `GET /machines/{id}/sessions`, production, telemetry history |
+| Settings | `#/settings` | `GET /me` (session restore) + dashboard telemetry from context |
+| Notifications | shell panel | derived client-side from dashboard + recent sessions |
+
+## Honesty rules in the UI
+
+* **Unreported is not zero.** A telemetry channel stays `null` unless the sample
+  is fresh; the UI shows “Not reported” (gauges, stat cards, tables) and never
+  invents `0`/`off`. A stale sample is ignored rather than presented as current.
+* **Units are not invented.** Motor speed has no confirmed firmware unit and is
+  labelled “unit unverified”; other units come from the telemetry contract.
+* **Totals are measured only.** PET/filament totals come from recycling records
+  and production weights; a missing weight is excluded and labelled, not counted
+  as zero. Bottle counts and CO₂e are explicitly estimates.
+* **Broker acceptance ≠ execution.** Command responses show the backend's
+  `delivery` state (published to broker / buffered, not sent) and
+  `deviceAcknowledged: false`; the user is told to confirm from fresh telemetry.
+  The stop dialog says it cannot confirm heater or spooler state.
+* **Polling is labelled polling.** No WebSocket exists; the footer says “API
+  refresh 10 s”, never “Live”.
 
 ## Architecture
 
-```
+```text
 src/
 ├── api/
-│   ├── client.ts            # fetch + Bearer token + envelope + 401 flow (single seam)
+│   ├── client.ts            # fetch + Bearer token + envelope + 401 flow
 │   ├── auth.ts              # login / register / me / logout
 │   ├── machines.ts          # machines, telemetry, sessions, production, recycling, commands
-│   └── agent.ts             # AI assistant chat + conversation deletes (read-only agent)
-├── realtime/
-│   └── realtimeService.ts   # connect/subscribe/onTelemetry — polling today, WS later
-├── types/
-│   └── api.ts               # API contract types (mirror of mobile-app/data/api.ts)
-├── contexts/
-│   ├── AuthContext.tsx      # login / register / session restore / single logout path
-│   ├── MachineContext.tsx   # API-backed machine state (sensors, sessions, alerts)
-│   ├── ThemeContext.tsx     # light/dark/system theme
-│   └── ToastContext.tsx     # toasts
-├── pages/                   # Dashboard, Machine, Assistant (agent chat), Recycling, Filament, Impact, History, Settings, Login
-├── components/              # layout, ui kit, charts, icons
-├── lib/                     # router (hash), format, csv, useAsync
-└── data/types.ts            # UI-only types + re-exports of the contract
+│   └── agent.ts             # assistant chat + conversation deletes
+├── realtime/realtimeService.ts  # 10 s polling + future socket interface
+├── types/api.ts             # backend contract types (hand-maintained copy)
+├── contexts/                # Auth, Machine, Theme, Toast providers
+├── pages/                   # Dashboard, Machine, AgentChat, Recycling, Filament, Impact, History, Settings, Login
+├── components/              # layout, ui kit, charts, icons, agent components
+├── lib/                     # router, format, csv, freshness, delivery copy, chat hook, useAsync
+├── data/types.ts            # UI-only types
+└── styles/                  # tokens + component/page styles
 ```
 
 Key rules:
 
-* **One API contract** — `src/types/api.ts` mirrors the backend exactly; never
-  invent field names locally.
-* **Auth is centralized** — components never read tokens; `api/client.ts` attaches
-  the Bearer token, `AuthContext` owns the session, 401 → single logout path.
-* **Machine actions are guarded commands** — start/pause/resume/stop go through
-  `POST /machines/{id}/commands`; the backend validates state and safe ranges
-  before anything reaches hardware.
-* **No fabricated data** — sensors show what the machine last reported; totals
-  come from measured recycling records; estimates (bottles, CO₂e) are labelled.
-* **Honest realtime** — without a realtime URL the dashboard polls every 10 s
-  (`REFRESH_MS = 10_000` in `src/realtime/realtimeService.ts`) and says so in
-  the UI; `RealtimeService` is already the WebSocket contract.
+* **One API contract** — `src/types/api.ts` mirrors the backend README; update
+  both clients and the backend together when a field changes.
+* **Auth is centralized** — components never read tokens; `api/client.ts`
+  attaches the Bearer token, `AuthContext` owns the session, and 401 triggers a
+  single logout path.
+* **Machine actions are guarded commands** through
+  `POST /machines/{id}/commands`; the backend validates state and ranges before
+  anything reaches hardware.
+* **Realtime is polling today** — `REFRESH_MS = 10_000` in
+  `src/realtime/realtimeService.ts`. A configured `VITE_REALTIME_URL` is kept as
+  a future socket target and never disables polling; `connect()` is a no-op.
 
 ## Data flow
 
-**Telemetry (machine → dashboard):**
-
-```mermaid
-flowchart LR
-  Machine -->|Serial/USB| Arduino_Mega
-  Arduino_Mega -->|UART| ESP32
-  ESP32 -->|MQTT telemetry| MQTT_Broker
-  MQTT_Broker -->|telemetry| Symfony_Consumer
-  Symfony_Consumer -->|PostgreSQL| PostgreSQL
-  PostgreSQL -->|API| Web_App
-  Web_App -->|dashboard| Browser
+```text
+Machine → Arduino Mega → ESP32 → MQTT broker → Symfony consumer → PostgreSQL
+PostgreSQL → Symfony API → this app (10 s polling)
+Commands: browser → Symfony (guard → audit → MQTT) → ESP32 → Mega → machine
 ```
 
-**Commands (dashboard → machine):**
+Web/Mobile never talk to MQTT, to the machine, or to each other; Symfony is the
+single backbone. MQTT is prepared but has not been run against a live broker.
 
-```mermaid
-flowchart LR
-  Browser -->|JWT| Web_App
-  Web_App -->|guard → audit → MQTT| MQTT_Broker
-  MQTT_Broker -->|commands| ESP32
-  ESP32 -->|UART| Arduino_Mega
-  Arduino_Mega -->|relay| Machine
-```
+## Status
 
-Rules: **Web/Mobile never talk to MQTT or to the machine or to each other.**
-Symfony is the single backbone. The **Arduino Mega** keeps deterministic machine
-control; the **ESP32** only does networking. Arrows shown are the ones that
-exist today; everything else is planned.
-
-## Implemented / Prepared / Future
+`Implemented` = code plus a passing test or verified local run.
+`Prepared` = code exists but is exercised only by fakes/mocks.
+`Future` = not implemented.
 
 | Area | State |
 |---|---|
-| HTTP API surface (auth, machines, telemetry, sessions, commands) | Implemented |
-| Telemetry ingestion pipeline (`TelemetryProcessor`) | Implemented |
-| Authorised machine commands with backend guard + audit | Implemented |
-| MQTT transport (publisher + `app:mqtt:consume` consumer) | Implemented (backend) |
-| Local Mosquitto dev broker with per-device ACL | Implemented (dev only) |
-| Device acknowledgement | Prepared — `commandId`/`expiresAt` on the wire; `deviceAcknowledged` stays false until firmware acks |
-| Device-originated events | Prepared |
-| Realtime transport (WebSocket/SSE/Mercure behind `RealtimeBroadcaster`) | Prepared — both frontends program against the final interface and poll honestly |
-| ESP32 firmware, incl. device-side auth | Future — not in this repo |
+| Auth screens + session restore | Implemented |
+| Dashboard, machine, recycling, filament, impact, history, settings | Implemented |
+| Null/stale telemetry handling and unit labelling | Implemented |
+| Guarded command UI with delivery honesty | Implemented (backend guard verified; no physical device) |
+| AI assistant screen (non-streaming, explicit retry) | Prepared — mocked API tests only; no live provider |
+| Realtime transport | Future — 10 s polling is implemented and labelled |
+| Browser visual/E2E pass | Future — no automated browser run is wired |
+| Refresh-token storage/rotation/logout revocation | Future by design — the web keeps only the short-lived access token and logs out on 401; cookie-based refresh is not implemented |
 
 ## Prerequisites
 
 | Tool | Version |
 |---|---|
-| Node.js | ≥ 18 (see `engines` in `package.json` — no engine constraint declared) |
-| npm | ≥ 9 (ships with Node ≥ 18) |
-
-> Project `package.json` does not declare engines; these are the versions used
-> to build this checkout. Install with `nvm install 18` / `nvm use 18`.
+| Node.js | 24 (what CI uses and what the local checks ran on; no `engines` field is declared) |
+| npm | 11 (CI installs npm 11 because npm 10's Arborist crashes on current registry peers) |
 
 ## Configuration
 
-| Variable | Required | Default | Meaning | Example placeholder |
-|---|---|---|---|---|
-| `VITE_API_BASE_URL` | yes | `http://127.0.0.1:8000/api` | Symfony API base; the **same** backend the mobile app uses | `http://YOUR_LAN_IP:8000/api` |
-| `VITE_REALTIME_URL` | no | *(empty)* | WebSocket/SSE endpoint; **empty = polling** every 10 s, not fake realtime | `ws://127.0.0.1:8080/ws` |
-| `VITE_ENVIRONMENT` | no | `development` | Shown in the UI footer, used for log verbosity | `production` |
+| Variable | Required | Default | Meaning |
+|---|---|---|---|
+| `VITE_API_BASE_URL` | yes | `http://127.0.0.1:8000/api` | Symfony API base (same backend as mobile) |
+| `VITE_REALTIME_URL` | no | empty | Future socket target only; polling continues regardless |
+| `VITE_ENVIRONMENT` | no | `development` | Footer label and log verbosity |
 
-No secrets are used by the client. `VITE_*` values are embedded in the bundle at
-build time, so **never** put credentials here — this app has none. Local
-overrides go in `.env` (git-ignored).
+`VITE_*` values are embedded in the bundle at build time: never put credentials
+there. Local overrides go in `.env` (git-ignored); committed `.env.example` holds
+placeholders.
+
+## Testing and quality
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm test             # vitest run: 8 files / 95 tests
+npm run build        # vite build (verifies bundling)
+```
+
+Latest results (2026-11-11, round 4): typecheck passes, **95 tests in 8 files pass**,
+build succeeds. Tests stub `fetch` and never touch the network; there is no
+lint step. CI (`.github/workflows/ci.yml`) runs Node 24 + npm 11, `npm ci`,
+typecheck, tests and build.
+
+Manual check of every relative README link/path:
+
+```bash
+node scripts/check-readme-links.mjs
+```
+
+## AI assistant (web)
+
+The assistant is a read-only chat screen (`#/agent`). It uses the normal user
+JWT; no provider key reaches the browser. It can read machines, telemetry,
+events, fault codes and the activity log; there is no write tool and the screen
+never imports the machine-command API.
+
+Backend requirements:
+
+1. `AGENT_ENABLED=true` in the backend `.env.local`.
+2. Agent migrations applied.
+3. `ANTHROPIC_API_KEY` in the backend `.env.local` for real answers (otherwise
+   `503 AGENT_LLM_UNAVAILABLE`).
+
+Behaviour: one in-flight turn, no automatic retry (retry is an explicit button),
+typed notices for validation/rate limit/daily cap/provider/disabled, and 404
+disables the surface only when the payload carries `AGENT_DISABLED`. Messages
+are capped at 4000 characters; answers are not streamed. No live provider call
+has ever been made from this project, so real answer quality is unverified.
 
 ## Project structure
 
 ```text
 .
-├── public/                  # Vite static assets (copied as-is to `dist`)
-├── scripts/                 # repo scripts
-├── docs/
-│   └── screenshots/         # exported PNGs, dark + light variants
-├── src/
-│   ├── api/                 # fetch wrappers + endpoint contracts (client, auth, machines)
-│   ├── components/          # layout, ui kit, charts, icons
-│   ├── contexts/            # Auth / Machine / Theme / Toast providers
-│   ├── data/                # UI-only types + re-exports of the backend contract
-│   ├── lib/                 # hash router, formatters, csv, useAsync
-│   ├── realtime/            # RealtimeService (polling today, WS contract later)
-│   ├── styles/              # CSS tokens + component styles (brand green)
-│   ├── types/               # API contract TypeScript types (single copy)
-│   ├── App.tsx              # providers + routing
-│   └── main.tsx
+├── docs/screenshots/        # committed UI captures (README gallery)
+├── scripts/                 # README link checker, PNG downscaler
+├── src/                     # app source (see Architecture)
 ├── index.html
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-├── docs/screenshots/*.png # run `npm run screenshot-gallery` to regenerate
+├── vitest.config.ts
 └── README.md
 ```
 
-## Scripts / commands
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | Start the Vite dev server |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview `dist/` locally |
-| `npm run typecheck` | Type-check `src` with `tsc --noEmit` |
-| `npm test` | Run the unit/UI tests (Vitest, jsdom) |
-
 ## Screenshots
-
-```mermaid
-graph LR
-  A[Home dark] --> B[Machine dark]
-  A --> C[Recycling dark]
-  A --> D[Impact dark]
-  B --> E[Home light]
-  C --> F[Machine light]
-  D --> G[Recycling light]
-  E --> H[Impact light]
-```
 
 | Dark | Light |
 |---|---|
@@ -196,79 +207,40 @@ graph LR
 | ![Recycling dark](docs/screenshots/recycling-dark.png) | ![Recycling light](docs/screenshots/recycling-light.png) |
 | ![Impact dark](docs/screenshots/impact-dark.png) | ![Impact light](docs/screenshots/impact-light.png) |
 
-Export a fresh set with `scripts/downscale-png.mjs` once a screenshot export command is wired in `scripts/` (not implemented yet) — the images above are the committed ones.
+The committed PNGs are the current captures; there is no automated screenshot
+export command. `scripts/downscale-png.mjs` resizes a supplied image.
 
-Client-side tests run with **Vitest + React Testing Library** (`npm test`,
-`src/**/*.test.ts[x]`, jsdom). They were added with the AI-assistant web
-integration — see `docs/ai-agent-web-integration.md` — and never touch the
-network: the transport is a stubbed `fetch`. Typechecking is `tsc --noEmit`
-(`npm run typecheck`) on the `tsconfig` include (`src`); `npm run build`
-verifies it bundles, `npm run preview` smoke-tests the production build. The CI
-contract (typecheck on CI, no `main` changes) is the same for all three
-software repos.
+## Security notes
 
-If `npm install` crashes in Arborist (`Cannot read properties of null (reading
-'edgesOut')`), re-run it as `npm install --legacy-peer-deps` — a known npm 10
-bug while resolving jsdom's optional `canvas` peer.
+* The **access token is stored in `localStorage`**, so any XSS on the origin can
+  read it. The backend returns a refresh token but this client deliberately does
+  **not** store or use one: on 401 it ends the session (local token cleared),
+  and logout clears only that access token. Cookie-based refresh with
+  server-side revocation is **Future**, not a hidden behaviour.
+* Auth surface is rate-limited by the backend (login 5/5 min, register 3/10 min,
+  refresh 30/5 min per IP).
+* `VITE_*` values are public by construction. Never put tokens, broker
+  credentials or JWT keys in this repository.
+* The backend dev broker is plaintext loopback only; never expose it.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Phone cannot reach the API | Backend only listens on `127.0.0.1` | Start the backend with `symfony serve --no-tls --allow-all-ip` (or `php -S 0.0.0.0:8000`); set `VITE_API_BASE_URL` to the PC's **LAN IP**, never `localhost` |
-| API unreachable from the phone | Windows Firewall blocks port 8000 | Allow inbound `Node.js` / `Port 8000` on **Private** network profile |
-| `npm run dev` fails with `EADDRINUSE:address already in use` | Another process on :5173 | `npx kill-port 5173` or use the `port` CLI option |
-| CORS errors on login | `CORS_ALLOW_ORIGIN` too narrow | Match `VITE_API_BASE_URL` origin in backend `.env.local` |
-| Two PostgreSQL containers / `symfony serve` overriding `DATABASE_URL` | Backend `compose.yaml` and `symfony serve` both inject a DB | Run `bash bin/dev-check` (Git Bash) or `.\bin\dev-check.ps1`; prefer Docker Postgres and run `symfony serve` with `DATABASE_URL` fixed, or stop the extra container |
-| `php` not on `PATH` in a new PowerShell window | PHP is not added to the system `PATH` | Run `php.exe` from its install path or add XAMPP/Git-Bash PHP to `PATH`; close and reopen the window |
-| OpenSSL `No such process` when generating JWT keys on Windows | `OPENSSL_CONF` not set | `set OPENSSL_CONF=C:\Program Files\OpenSSL-Win64\bin\openssl.cfg` then generate keys |
-| `429` from the login rate limiter | Too many failed logins | Wait `Retry-After` seconds, or close the limiter in `config/packages/rate_limiter.yaml` for local debugging |
-| `npm start -- -c` after `.env` change | Vite does not reload env without restart | Restart the dev server after changing `.env` |
-| JSON pipe test fails (Windows PowerShell) | `.ps1` without UTF-8-BOM parses in PS 5.1 | Save the `.ps1` as **UTF-8 with BOM** or run the test via the `-File` variant (see `bin/dev-check.ps1`) |
-| `.env` password with special characters breaks the app | Dotenv parses unquoted special chars | Quote the value (e.g. `DATABASE_URL="postgres://...@host:5432/db"`) |
-| `deviceAcknowledged` is always `false` | No firmware ack channel implemented yet | Expected until a firmware ack exists |
+| API unreachable | Backend not running / wrong base URL | Start the backend and check `VITE_API_BASE_URL` |
+| CORS error on login | Backend origin regex too narrow | Match the Vite origin in backend `CORS_ALLOW_ORIGIN` |
+| `npm install` Arborist crash | npm 10 peer resolution bug | Use npm 11 (`npm install -g npm@11`) |
+| Login returns `429` | Rate limit | Wait `Retry-After`, or relax the limiter in local backend config |
+| `EADDRINUSE` on 5173 | Port occupied | Stop the other process or run Vite on another port |
+| Gauges show “Not reported” | No fresh telemetry | Expected; the device has not reported, or the sample is stale |
+| `deviceAcknowledged` is always `false` | No firmware ack channel exists | Expected until firmware acknowledgements ship |
 
-## Security notes
+## Related repositories
 
-* Owner/device isolation is enforced by `MachineAccess` (ownership check) and
-  the `deviceTokensEnabled` kill switch.
-* Device tokens are hashed at rest; JWT is RS256, 1 h TTL, refresh token
-  (single-use, revocable) via `gesdinet/jwt-refresh-token-bundle`.
-* Auth surface is rate-limited (login 5/5 min, register 3/10 min per IP).
-* **Never commit** `.env.local`, JWT keys (`config/jwt/*.pem`) or broker
-  passwords — all are git-ignored.
-* The dev broker is **loopback-only** (127.0.0.1:1883, plaintext, `MQTT_TLS=false`).
-  TLS + per-device credentials are required before any deployment and are not
-  implemented here.
-
-## Roadmap
-
-1. **Core API** — auth, machines, telemetry, sessions, production, recycling
-   *(done, verified locally)*
-2. **Guarded commands + audit** — backend-safe command dispatch
-   *(done, verified locally)*
-3. **MQTT broker integration** *(done and verified locally: telemetry in,
-   commands out, ACL isolation, 503 when the broker is down)*
-4. **ESP32 + Arduino Mega serial gateway** — planned; bench wiring exists,
-   bench test pending, protocol not yet defined
-5. **Device authentication** — device tokens
-6. **Realtime transport** — WebSocket/SSE hub
-7. **Push notifications**
-8. **Admin back-office**
-9. **Deployment** — Docker image, CI/CD, TLS
-10. **Helpdesk / operation tooling**
-
-**Current position:** phases 1–3 are done. Phases 4–10 are pending and
-documented as TODO(anouer) markers in this README.
-
-## Related docs
-
-* API contract: [`docs/api-contract.md`](docs/api-contract.md)
-* MQTT contract: [`docs/mqtt-contract.md`](docs/mqtt-contract.md)
-* Backend: [`../backend/README.md`](../backend/README.md)
-* Mobile: [`../mobile-app/README.md`](../mobile-app/README.md)
-* Hardware: [`../pet-recycling-filament-system/README.md`](../pet-recycling-filament-system/README.md)
+* Backend (API/MQTT/agent contract): https://github.com/AnouerChouikhgithub/PET-Recycling-Filament-System-Backend/blob/main/README.md
+* Mobile: https://github.com/AnouerChouikhgithub/PET-Recycling-Filament-System-Mobile/blob/main/README.md
+* Hardware: https://github.com/AnouerChouikhgithub/pet-recycling-filament-system
 
 ## License
 
-TODO(anouer): no LICENSE file found in this repo — add one.
+TODO(anouer): no LICENSE file exists in this repository — add one.

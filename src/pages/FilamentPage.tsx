@@ -44,7 +44,10 @@ export function FilamentPage() {
     [batches, quality, query],
   )
 
-  const totalWeight = batches.reduce((a, b) => a + b.weightGrams, 0)
+  const reportedWeights = batches
+    .map((b) => b.weightGrams)
+    .filter((value): value is number => value != null)
+  const totalWeight = reportedWeights.reduce((total, weight) => total + weight, 0)
 
   return (
     <>
@@ -65,15 +68,15 @@ export function FilamentPage() {
         <div className="card row" style={{ gap: 14, padding: '18px 20px' }}>
           <span className="stat-card-icon"><SpoolIcon size={21} /></span>
           <div>
-            <div className="stat-value">{formatKg(totalWeight / 1000)}</div>
-            <div className="stat-label">total filament</div>
+            <div className="stat-value">{reportedWeights.length > 0 ? formatKg(totalWeight / 1000) : '—'}</div>
+            <div className="stat-label">total reported filament</div>
           </div>
         </div>
         <div className="card row" style={{ gap: 14, padding: '18px 20px' }}>
           <span className="stat-card-icon"><SpoolIcon size={21} /></span>
           <div>
-            <div className="stat-value">{batches.length > 0 ? `${batches[0].diameterTarget.toFixed(2)} mm` : '1.75 mm'}</div>
-            <div className="stat-label">standard diameter</div>
+            <div className="stat-value">{batches.length > 0 ? `${batches[0].diameterTarget.toFixed(2)} mm` : '—'}</div>
+            <div className="stat-label">latest batch target diameter</div>
           </div>
         </div>
       </div>
@@ -131,7 +134,7 @@ export function FilamentPage() {
               <div className="batch-facts">
                 <div>
                   <dt>Weight</dt>
-                  <dd>{Math.round(b.weightGrams)} g</dd>
+                  <dd>{b.weightGrams == null ? 'Not reported' : `${Math.round(b.weightGrams)} g`}</dd>
                 </div>
                 <div>
                   <dt>Produced</dt>
@@ -157,7 +160,7 @@ export function FilamentPage() {
             <FactRow k="Produced" v={formatDateTime(detail.producedAt)} />
             <FactRow k="Diameter target" v={`${detail.diameterTarget.toFixed(2)} mm`} />
             <FactRow k="Diameter actual" v={detail.diameterActual != null ? `${detail.diameterActual.toFixed(2)} mm` : '—'} />
-            <FactRow k="Weight" v={`${Math.round(detail.weightGrams)} g`} />
+            <FactRow k="Weight" v={detail.weightGrams == null ? 'Not reported' : `${Math.round(detail.weightGrams)} g`} />
             {detail.lengthMeters != null && <FactRow k="Length" v={`${Math.round(detail.lengthMeters)} m`} />}
             <FactRow k="Quality" v={detail.quality} />
             {detail.notes && (

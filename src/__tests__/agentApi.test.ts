@@ -189,6 +189,15 @@ describe('agentApi.chat — error mapping (verified backend codes)', () => {
     expect(isAgentDisabled(error)).toBe(true)
   })
 
+  it('does not map unrelated 404s to the disabled surface', async () => {
+    fetchMock.mockResolvedValue(response(failure('NOT_FOUND', 'Resource not found.'), 404))
+
+    const error = (await agentApi.chat('hi', null).catch((e: unknown) => e)) as AgentRequestError
+
+    expect(error.kind).toBe('unknown')
+    expect(isAgentDisabled(error)).toBe(false)
+  })
+
   it('maps 404 + AGENT_NOT_FOUND to a missing conversation (not to a disabled surface)', async () => {
     fetchMock.mockResolvedValue(response(failure('AGENT_NOT_FOUND', 'Conversation not found.'), 404))
 

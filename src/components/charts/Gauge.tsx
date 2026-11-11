@@ -1,7 +1,7 @@
 import { useId } from 'react'
 
 interface GaugeProps {
-  value: number
+  value: number | null
   min?: number
   max?: number
   /** Big center label override (e.g. "78%"). Defaults to the value. */
@@ -17,7 +17,8 @@ const STROKE_RATIO = 0.058
 /** Semicircular gauge matching the 3awedlou reference design. */
 export function Gauge({ value, min = 0, max = 100, display, sublabel, size = 200 }: GaugeProps) {
   const gid = useId().replace(/[^a-zA-Z0-9]/g, '')
-  const pct = Math.min(1, Math.max(0.02, (value - min) / (max - min || 1)))
+  const pct = value == null ? 0 : Math.min(1, Math.max(0.02, (value - min) / (max - min || 1)))
+  const shownValue = display ?? (value == null ? 'Not reported' : Math.round(value))
   const h = size * 0.6
   const cx = size / 2
   const cy = size * 0.52
@@ -47,7 +48,7 @@ export function Gauge({ value, min = 0, max = 100, display, sublabel, size = 200
       height={h}
       viewBox={`0 0 ${size} ${h}`}
       role="img"
-      aria-label={`Gauge at ${display ?? Math.round(value)}`}
+      aria-label={`Gauge at ${shownValue}`}
     >
       <defs>
         <linearGradient id={`gg-${gid}`} x1="0" y1="1" x2="1" y2="0">
@@ -88,7 +89,7 @@ export function Gauge({ value, min = 0, max = 100, display, sublabel, size = 200
         fill="var(--text-1)"
         style={{ fontSize: size * 0.155, fontWeight: 800, letterSpacing: '-0.02em' }}
       >
-        {display ?? Math.round(value)}
+        {shownValue}
       </text>
       {sublabel && (
         <text

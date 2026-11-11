@@ -78,15 +78,6 @@ function Shell() {
     if (!window.location.hash) navigateTo('dashboard')
   }, [])
 
-  // Stop realtime polling when the tab is hidden — battery/bandwidth friendly.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) realtimeService.disconnect()
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [])
-
   const handleNavigate = (r: RouteName) => {
     navigate(r)
     setNotifOpen(false)

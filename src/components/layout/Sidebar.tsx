@@ -111,7 +111,6 @@ export function Sidebar({
           </div>
           <div className="conn-widget-sub">
             <span className="mono">{deviceName}</span>
-            <span className="demo-tag">Demo</span>
           </div>
         </div>
 

@@ -94,7 +94,7 @@ export function SettingsPage() {
                 </span>
               </div>
               <div className="row" style={{ gap: 8 }}>
-                <span className="demo-tag">Account</span>
+                <span className="meta-tag">Account</span>
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   Profile editing arrives with the account API (phase 3).
                 </span>
@@ -239,7 +239,7 @@ export function SettingsPage() {
                 checked={reduceMotion}
                 onChange={setReduceMotion}
               />
-              <div className="demo-banner">
+              <div className="info-banner">
                 Theme and display preferences persist locally in your browser. Account sync arrives with the backend phase.
               </div>
             </div>

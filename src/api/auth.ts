@@ -20,7 +20,10 @@ export const authApi = {
   },
 
   logout(): void {
-    // Stateless JWT: the server keeps no session — discarding the token IS logout.
+    // Discards the short-lived access token locally. This client deliberately
+    // does NOT keep a refresh token in JavaScript-readable storage, so it also
+    // cannot revoke one server-side; a 401 simply ends the session. Cookie-based
+    // refresh + server revocation is Future (a separate design decision).
     setToken(null)
   },
 }

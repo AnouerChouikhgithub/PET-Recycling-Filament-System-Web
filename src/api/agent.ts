@@ -1,7 +1,7 @@
 /**
  * AI assistant endpoints (web).
  *
- * Verified against the committed Symfony controller + docs/api-contract.md
+ * Verified against the committed Symfony controller + the backend README (API contract)
  * (AgentController, session 2 backend):
  *
  *   POST   /api/agent/chat               { conversationId?, message } -> 200
@@ -118,8 +118,9 @@ export function toAgentError(error: unknown): AgentRequestError {
         break
     }
 
-    // 404 without AGENT_NOT_FOUND = the whole agent surface is switched off.
-    if (error.status === 404) {
+    // Only the backend's explicit AGENT_DISABLED response means that the
+    // whole surface is off; an unrelated 404 must not hide a routing bug.
+    if (error.status === 404 && error.message.includes('AGENT_DISABLED')) {
       return new AgentRequestError('disabled', 'The assistant is not available right now.', null, 404)
     }
     if (error.status === 401) {

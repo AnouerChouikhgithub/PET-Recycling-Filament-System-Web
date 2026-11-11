@@ -6,10 +6,11 @@
  * future transport will use — connect(), disconnect(), subscribeToMachine(),
  * onTelemetry(), onMachineStatus(), onMachineEvent() — with two behaviors:
  *
- *   - VITE_REALTIME_URL set → connects to it (wired when the backend realtime
- *     hub ships; the interface below is the stable contract).
- *   - VITE_REALTIME_URL empty → honest refresh polling of the dashboard
- *     endpoint, surfaced to the UI as `transport: 'polling'`.
+ *   - Polling of the dashboard endpoint, surfaced to the UI as
+ *     `transport: 'polling'`.
+ *   - A configured VITE_REALTIME_URL is retained as a future socket target,
+ *     but it never selects a socket until one is actually connected. Until
+ *     the backend hub ships, every deployment keeps polling.
  *
  * Dashboards subscribe once; switching the transport later requires no page
  * rewrites. `onMachineStatus` and `onMachineEvent` fire only on push
@@ -28,18 +29,26 @@ export interface RealtimeHandlers {
 
 const REFRESH_MS = 10_000
 
-class RealtimeService {
+export class RealtimeService {
   private handlers: RealtimeHandlers = {}
   private machineId: string | null = null
   private timer: number | null = null
   private running = false
   private inFlight = false
   private visibilityWatched = false
-  private transport: RealtimeTransport =
-    import.meta.env.VITE_REALTIME_URL ? 'websocket' : 'polling'
+  private transport: RealtimeTransport = 'polling'
+
+  constructor(
+    /** Kept for the future socket transport; it must not disable polling. */
+    private readonly configuredUrl: string | null = import.meta.env.VITE_REALTIME_URL || null,
+  ) {}
 
   get mode(): RealtimeTransport {
     return this.transport
+  }
+
+  get hasConfiguredSocketUrl(): boolean {
+    return this.configuredUrl !== null
   }
 
   get isRunning(): boolean {
@@ -60,7 +69,7 @@ class RealtimeService {
     this.stopPolling()
     this.machineId = machineId
     this.running = true
-    if (this.transport === 'polling') this.startPolling()
+    this.startPolling()
   }
 
   unsubscribe(): void {
@@ -105,7 +114,7 @@ class RealtimeService {
     if (this.visibilityWatched) return
     this.visibilityWatched = true
     document.addEventListener('visibilitychange', () => {
-      if (this.transport !== 'polling' || !this.running) return
+      if (!this.running) return
       if (document.hidden) this.stopPolling()
       else this.startPolling()
     })

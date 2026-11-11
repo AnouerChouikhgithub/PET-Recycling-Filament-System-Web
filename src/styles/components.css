@@ -192,8 +192,8 @@
   }
 }
 
-/* ---------------- Demo banner ---------------- */
-.demo-banner {
+/* ---------------- Information banner ---------------- */
+.info-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -206,16 +206,16 @@
   font-size: 13.5px;
   flex-wrap: wrap;
 }
-.demo-banner strong {
+.info-banner strong {
   color: var(--text-1);
 }
-.demo-banner .demo-banner-left {
+.info-banner .info-banner-left {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
-.demo-banner .demo-banner-left svg {
+.info-banner .info-banner-left svg {
   color: var(--brand);
   flex-shrink: 0;
 }

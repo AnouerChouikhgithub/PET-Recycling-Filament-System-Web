@@ -20,6 +20,7 @@ import { machinesApi } from '../api/machines'
 import { useMachine } from '../contexts/MachineContext'
 import { exportCsv } from '../lib/csv'
 import { formatDate, formatDateTime, formatDuration, timeAgo } from '../lib/format'
+import { compareNullableNumber } from '../lib/historySort'
 import type { FilamentProduction, MachineSession, MachineTelemetry } from '../types/api'
 
 type TabKey = 'sessions' | 'batches' | 'telemetry' | 'alerts'
@@ -58,9 +59,9 @@ export function HistoryPage() {
         case 'id':
           return a.id.localeCompare(b.id) * dir
         case 'materialInput':
-          return ((a.materialInput ?? 0) - (b.materialInput ?? 0)) * dir
+          return compareNullableNumber(a.materialInput, b.materialInput, dir)
         case 'materialOutput':
-          return ((a.materialOutput ?? 0) - (b.materialOutput ?? 0)) * dir
+          return compareNullableNumber(a.materialOutput, b.materialOutput, dir)
         case 'status':
           return a.status.localeCompare(b.status) * dir
         default:
@@ -80,7 +81,7 @@ export function HistoryPage() {
         case 'color':
           return a.color.localeCompare(b.color) * dir
         case 'weightGrams':
-          return (a.weightGrams - b.weightGrams) * dir
+          return compareNullableNumber(a.weightGrams, b.weightGrams, dir)
         default:
           return a.producedAt.localeCompare(b.producedAt) * dir
       }
@@ -150,7 +151,7 @@ export function HistoryPage() {
       ),
     },
     { key: 'diameter', header: 'Diameter', align: 'right', hideOnMobile: true, render: (b) => (b.diameterActual != null ? `${b.diameterActual.toFixed(2)} mm` : '—') },
-    { key: 'weightGrams', header: 'Weight', sortable: true, align: 'right', render: (b) => `${Math.round(b.weightGrams)} g` },
+    { key: 'weightGrams', header: 'Weight', sortable: true, align: 'right', render: (b) => (b.weightGrams == null ? 'Not reported' : `${Math.round(b.weightGrams)} g`) },
     { key: 'date', header: 'Created', sortable: true, render: (b) => <span className="td-muted">{formatDate(b.producedAt)}</span> },
     {
       key: 'quality',
@@ -172,7 +173,7 @@ export function HistoryPage() {
         : ['Batch', 'Color', 'Diameter (mm)', 'Weight (g)', 'Created', 'Quality'],
       tab === 'sessions'
         ? sortedSessions.map((s) => [s.id.slice(0, 8), formatDateTime(s.startedAt), s.materialInput ?? '', s.materialOutput ?? '', s.durationMinutes != null ? Math.round(s.durationMinutes) : '', s.status])
-        : sortedBatches.map((b) => [b.batchCode, b.color, b.diameterActual ?? '', Math.round(b.weightGrams), formatDateTime(b.producedAt), b.quality]),
+        : sortedBatches.map((b) => [b.batchCode, b.color, b.diameterActual ?? '', b.weightGrams != null ? Math.round(b.weightGrams) : '', formatDateTime(b.producedAt), b.quality]),
     )
   }
 
@@ -299,11 +300,11 @@ function TelemetryList({ samples }: { samples: MachineTelemetry[] }) {
               <div className="timeline-title">
                 {t.temperature != null ? `${t.temperature.toFixed(1)}°C` : '—'}
                 {t.targetTemperature != null ? ` → ${Math.round(t.targetTemperature)}°C` : ''}
-                {t.motorSpeed != null ? ` · ${t.motorSpeed} RPM` : ''}
+                {t.motorSpeed != null ? ` · ${t.motorSpeed} (unit unverified)` : ''}
                 {t.filamentDiameter != null ? ` · ${t.filamentDiameter.toFixed(2)} mm` : ''}
               </div>
               <div className="timeline-meta">
-                heater {t.heaterState ? 'on' : 'off'} · motor {t.motorState ? 'on' : 'off'} · fan {t.fanState ? 'on' : 'off'}
+                heater {t.heaterState == null ? 'Not reported' : t.heaterState ? 'on' : 'off'} · motor {t.motorState == null ? 'Not reported' : t.motorState ? 'on' : 'off'} · fan {t.fanState == null ? 'Not reported' : t.fanState ? 'on' : 'off'}
                 {t.energyConsumption != null ? ` · ${t.energyConsumption.toFixed(2)} kWh` : ''}
               </div>
             </div>
