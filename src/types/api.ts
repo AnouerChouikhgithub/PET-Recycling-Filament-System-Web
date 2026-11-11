@@ -182,11 +182,14 @@ export interface MachineCommandResult {
   value: number | null
   topic: string
   accepted: boolean
-  /** Audit-row correlation id; device acks will reference it. */
+  /** Audit-row correlation id; device acks reference it. */
   commandId: string
   /** Broker acceptance only — never proof of physical execution. */
   delivery: CommandDelivery
-  /** Always false until firmware acknowledgements exist. */
+  /**
+   * False on the immediate 202. True only after the backend matched a real
+   * MQTT command_ack for this command id and machine to the audit row.
+   */
   deviceAcknowledged: boolean
   sentAt: string
   expiresAt: string
