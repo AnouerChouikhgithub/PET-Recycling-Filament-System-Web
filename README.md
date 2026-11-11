@@ -129,7 +129,7 @@ single backbone. MQTT is prepared but has not been run against a live broker.
 
 | Tool | Version |
 |---|---|
-| Node.js | 20 (what CI uses; no `engines` field is declared) |
+| Node.js | 24 (what CI uses and what the local checks ran on; no `engines` field is declared) |
 | npm | 11 (CI installs npm 11 because npm 10's Arborist crashes on current registry peers) |
 
 ## Configuration
@@ -154,7 +154,7 @@ npm run build        # vite build (verifies bundling)
 
 Latest results (2026-11-11, round 4): typecheck passes, **95 tests in 8 files pass**,
 build succeeds. Tests stub `fetch` and never touch the network; there is no
-lint step. CI (`.github/workflows/ci.yml`) runs Node 20 + npm 11, `npm ci`,
+lint step. CI (`.github/workflows/ci.yml`) runs Node 24 + npm 11, `npm ci`,
 typecheck, tests and build.
 
 Manual check of every relative README link/path:
