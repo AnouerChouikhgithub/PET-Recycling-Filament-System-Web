@@ -17,6 +17,8 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly details?: Record<string, string[]>,
+    /** Response headers when a real response existed (e.g. Retry-After). */
+    public readonly headers?: Headers,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -65,8 +67,20 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
-/** Single entry point for every API call. Returns unwrapped `data`. */
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/** Unwrapped `data` plus the transport metadata some callers need. */
+export interface ApiResult<T> {
+  data: T
+  /** `meta` block of the envelope (pagination, usage) — `{}` when absent. */
+  meta: Record<string, unknown>
+  status: number
+  headers: Headers
+}
+
+/**
+ * Same auth/envelope/error handling as request(), but returns the whole
+ * result: status, headers (e.g. Retry-After) and the `meta` block.
+ */
+export async function requestRaw<T>(path: string, options: RequestOptions = {}): Promise<ApiResult<T>> {
   const { method = 'GET', body, signal } = options
 
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -98,10 +112,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     payload = await res.json()
   } catch {
-    throw new ApiError('BAD_RESPONSE', 'The server returned an unexpected response.', res.status)
+    throw new ApiError('BAD_RESPONSE', 'The server returned an unexpected response.', res.status, undefined, res.headers)
   }
 
-  const envelope = payload as { success?: boolean; data?: T; error?: { code: string; message: string; details?: Record<string, string[]> } }
+  const envelope = payload as {
+    success?: boolean
+    data?: T
+    meta?: Record<string, unknown>
+    error?: { code: string; message: string; details?: Record<string, string[]> }
+  }
 
   if (!res.ok || envelope.success === false) {
     const error = envelope?.error
@@ -110,13 +129,25 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       error?.message ?? `Request failed (HTTP ${res.status}).`,
       res.status,
       error?.details,
+      res.headers,
     )
   }
 
-  return (envelope.data ?? (payload as T)) as T
+  return {
+    data: (envelope.data ?? (payload as T)) as T,
+    meta: envelope.meta ?? {},
+    status: res.status,
+    headers: res.headers,
+  }
+}
+
+/** Single entry point for every API call. Returns unwrapped `data`. */
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return (await requestRaw<T>(path, options)).data
 }
 
 export const api = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: 'GET', signal }),
   post: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>(path, { method: 'POST', body, signal }),
+  del: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: 'DELETE', signal }),
 }

@@ -12,6 +12,7 @@ import { BellIcon, LogoutIcon } from './components/icons'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { MachinePage } from './pages/MachinePage'
+import { AgentChatPage } from './pages/AgentChatPage'
 import { RecyclingPage } from './pages/RecyclingPage'
 import { FilamentPage } from './pages/FilamentPage'
 import { ImpactPage } from './pages/ImpactPage'
@@ -160,6 +161,7 @@ function Shell() {
             )}
             {route === 'dashboard' && <DashboardPage />}
             {route === 'machine' && <MachinePage />}
+            {route === 'agent' && <AgentChatPage />}
             {route === 'recycling' && <RecyclingPage />}
             {route === 'filament' && <FilamentPage />}
             {route === 'impact' && <ImpactPage />}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 export type RouteName =
   | 'dashboard'
   | 'machine'
+  | 'agent'
   | 'recycling'
   | 'filament'
   | 'impact'
@@ -12,6 +13,7 @@ export type RouteName =
 export const ROUTES: RouteName[] = [
   'dashboard',
   'machine',
+  'agent',
   'recycling',
   'filament',
   'impact',

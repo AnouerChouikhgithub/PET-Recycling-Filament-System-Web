@@ -30,6 +30,8 @@ Dev accounts (loaded by backend fixtures, dev only): `anouer@3awedlou.app` /
 | `npm run dev` | Vite dev server on :5173 |
 | `npm run build` | Type-safe production build (`dist/`) |
 | `npm run preview` | Preview the production build |
+| `npm run typecheck` | `tsc --noEmit` over `src` |
+| `npm test` | Vitest + React Testing Library (jsdom) |
 
 ## Architecture
 
@@ -38,7 +40,8 @@ src/
 ├── api/
 │   ├── client.ts            # fetch + Bearer token + envelope + 401 flow (single seam)
 │   ├── auth.ts              # login / register / me / logout
-│   └── machines.ts          # machines, telemetry, sessions, production, recycling, commands
+│   ├── machines.ts          # machines, telemetry, sessions, production, recycling, commands
+│   └── agent.ts             # AI assistant chat + conversation deletes (read-only agent)
 ├── realtime/
 │   └── realtimeService.ts   # connect/subscribe/onTelemetry — polling today, WS later
 ├── types/
@@ -48,7 +51,7 @@ src/
 │   ├── MachineContext.tsx   # API-backed machine state (sensors, sessions, alerts)
 │   ├── ThemeContext.tsx     # light/dark/system theme
 │   └── ToastContext.tsx     # toasts
-├── pages/                   # Dashboard, Machine, Recycling, Filament, Impact, History, Settings, Login
+├── pages/                   # Dashboard, Machine, Assistant (agent chat), Recycling, Filament, Impact, History, Settings, Login
 ├── components/              # layout, ui kit, charts, icons
 ├── lib/                     # router (hash), format, csv, useAsync
 └── data/types.ts            # UI-only types + re-exports of the contract
@@ -170,6 +173,8 @@ overrides go in `.env` (git-ignored).
 | `npm run dev` | Start the Vite dev server |
 | `npm run build` | Production build to `dist/` |
 | `npm run preview` | Preview `dist/` locally |
+| `npm run typecheck` | Type-check `src` with `tsc --noEmit` |
+| `npm test` | Run the unit/UI tests (Vitest, jsdom) |
 
 ## Screenshots
 
@@ -193,11 +198,18 @@ graph LR
 
 Export a fresh set with `scripts/downscale-png.mjs` once a screenshot export command is wired in `scripts/` (not implemented yet) — the images above are the committed ones.
 
-Client-side tests are **not** wired in this checkout: `npm test` is not defined.
-Run `npm run build` to verify it type-checks and bundles; `npm run preview` to
-smoke-test the production build. Linting and typechecking are `tsc --noEmit`
-via `tsc` on the `tsconfig` include (`src`). The CI contract (typecheck on CI,
-no `main` changes) is the same for all three software repos.
+Client-side tests run with **Vitest + React Testing Library** (`npm test`,
+`src/**/*.test.ts[x]`, jsdom). They were added with the AI-assistant web
+integration — see `docs/ai-agent-web-integration.md` — and never touch the
+network: the transport is a stubbed `fetch`. Typechecking is `tsc --noEmit`
+(`npm run typecheck`) on the `tsconfig` include (`src`); `npm run build`
+verifies it bundles, `npm run preview` smoke-tests the production build. The CI
+contract (typecheck on CI, no `main` changes) is the same for all three
+software repos.
+
+If `npm install` crashes in Arborist (`Cannot read properties of null (reading
+'edgesOut')`), re-run it as `npm install --legacy-peer-deps` — a known npm 10
+bug while resolving jsdom's optional `canvas` peer.
 
 ## Troubleshooting
 

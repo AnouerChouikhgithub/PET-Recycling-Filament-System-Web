@@ -34,6 +34,7 @@ class RealtimeService {
   private timer: number | null = null
   private running = false
   private inFlight = false
+  private visibilityWatched = false
   private transport: RealtimeTransport =
     import.meta.env.VITE_REALTIME_URL ? 'websocket' : 'polling'
 
@@ -91,10 +92,29 @@ class RealtimeService {
 
   /** One immediate refresh — used after user actions (start/stop session…). */
   refreshNow(): void {
-    if (this.running) void this.poll()
+    if (this.running && !document.hidden) void this.poll()
+  }
+
+  /**
+   * A hidden tab must not keep polling (wasted requests, and the numbers the
+   * user comes back to are stale). Pause on hide, refresh IMMEDIATELY on show -
+   * the dashboard never shows numbers older than the moment it became visible
+   * (BUGS-TO-FIX F12). Bound once: this service is an app-lifetime singleton.
+   */
+  private watchVisibility(): void {
+    if (this.visibilityWatched) return
+    this.visibilityWatched = true
+    document.addEventListener('visibilitychange', () => {
+      if (this.transport !== 'polling' || !this.running) return
+      if (document.hidden) this.stopPolling()
+      else this.startPolling()
+    })
   }
 
   private startPolling(): void {
+    this.watchVisibility()
+    this.stopPolling()
+    if (document.hidden) return // the visibilitychange handler resumes us
     void this.poll()
     this.timer = window.setInterval(() => void this.poll(), REFRESH_MS)
   }

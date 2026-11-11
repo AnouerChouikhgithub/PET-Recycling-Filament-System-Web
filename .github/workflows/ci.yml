@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, 'feat/**']
+  pull_request:
+
+jobs:
+  check:
+    name: Typecheck, test & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # npm 10's arborist crashes ("Cannot read properties of null (reading
+      # 'edgesOut')") resolving vitest's `*`-range optional peers against
+      # current registry majors (vitest 5, jsdom 30). npm 11 handles it; the
+      # lock itself is fine (verified locally with npm 11.21.1).
+      - name: Use npm 11
+        run: npm install -g npm@11
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
